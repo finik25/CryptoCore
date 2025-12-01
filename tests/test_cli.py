@@ -205,5 +205,97 @@ class TestCLI(unittest.TestCase):
         self.assertFalse(args.decrypt)
 
 
+def test_cli_encryption_with_iv_warning(self):
+    # Test that using --iv during encryption produces warning
+    key = "00112233445566778899aabbccddeeff"
+    args = [
+        "--algorithm", "aes", "--mode", "cbc", "--encrypt",
+        "--key", key, "--iv", "000102030405060708090a0b0c0d0e0f",
+        "--input", self.test_file, "--force"
+    ]
+
+    exit_code, stdout, stderr = self.capture_main_output(args)
+    self.assertEqual(exit_code, 0)
+    self.assertIn("Warning: --iv is ignored during encryption", stderr)
+
+
+def test_cli_ecb_with_iv_error(self):
+    # Test that ECB with --iv produces error
+    key = "00112233445566778899aabbccddeeff"
+    args = [
+        "--algorithm", "aes", "--mode", "ecb", "--encrypt",
+        "--key", key, "--iv", "000102030405060708090a0b0c0d0e0f",
+        "--input", self.test_file
+    ]
+
+    exit_code, stdout, stderr = self.capture_main_output(args)
+    self.assertNotEqual(exit_code, 0)
+    self.assertIn("--iv not supported for ECB mode", stderr)
+
+
+def test_cli_decryption_with_external_iv(self):
+    # Test decryption with external IV (OpenSSL compatibility)
+    key = "00112233445566778899aabbccddeeff"
+    external_iv = "000102030405060708090a0b0c0d0e0f"
+
+    # Create a test file
+    test_data = b"Test data for external IV decryption"
+    test_file = os.path.join(self.temp_dir, "ext_iv_test.txt")
+    with open(test_file, 'wb') as f:
+        f.write(test_data)
+
+    # Encrypt with external IV simulation (like OpenSSL would do)
+    # This would be done by OpenSSL, but for test we'll simulate
+
+    # For this test, we need to actually use OpenSSL or mock
+    # Let's skip for now and implement in OpenSSL compatibility tests
+    self.skipTest("Requires OpenSSL integration test")
+
+
+def test_cli_file_with_iv_too_short(self):
+    # Test error when file is too short to contain IV
+    key = "00112233445566778899aabbccddeeff"
+
+    # Create a very short file (less than 16 bytes)
+    short_file = os.path.join(self.temp_dir, "short.bin")
+    with open(short_file, 'wb') as f:
+        f.write(b"short")
+
+    args = [
+        "--algorithm", "aes", "--mode", "cbc", "--decrypt",
+        "--key", key, "--input", short_file
+    ]
+
+    exit_code, stdout, stderr = self.capture_main_output(args)
+    self.assertNotEqual(exit_code, 0)
+    self.assertIn("too short to contain IV", stderr)
+
+
+def test_cli_iv_format_validation(self):
+    # Test IV format validation
+    key = "00112233445566778899aabbccddeeff"
+
+    # Test invalid hex
+    args = [
+        "--algorithm", "aes", "--mode", "cbc", "--decrypt",
+        "--key", key, "--iv", "invalid_hex",
+        "--input", self.test_file
+    ]
+
+    exit_code, stdout, stderr = self.capture_main_output(args)
+    self.assertNotEqual(exit_code, 0)
+    self.assertIn("Invalid IV format", stderr)
+
+    # Test wrong length (not 16 bytes = 32 hex chars)
+    args = [
+        "--algorithm", "aes", "--mode", "cbc", "--decrypt",
+        "--key", key, "--iv", "001122",  # Too short
+        "--input", self.test_file
+    ]
+
+    exit_code, stdout, stderr = self.capture_main_output(args)
+    self.assertNotEqual(exit_code, 0)
+    self.assertIn("IV must be 16 bytes", stderr)
+
 if __name__ == "__main__":
     unittest.main()

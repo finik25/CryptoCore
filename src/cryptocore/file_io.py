@@ -1,5 +1,5 @@
 import os
-from typing import Optional
+from typing import Tuple, Optional
 
 
 def read_file(file_path: str) -> bytes:
@@ -16,6 +16,18 @@ def read_file(file_path: str) -> bytes:
         raise PermissionError(f"No permission to read file: {file_path}")
     except IOError as e:
         raise IOError(f"Error reading file {file_path}: {str(e)}")
+
+
+def read_file_with_iv(file_path: str) -> Tuple[bytes, bytes]:
+    data = read_file(file_path)
+
+    if len(data) < 16:
+        raise ValueError(f"File too short to contain IV: {len(data)} bytes, need at least 16 bytes")
+
+    iv = data[:16]
+    remaining_data = data[16:]
+
+    return iv, remaining_data
 
 
 def write_file(file_path: str, data: bytes, overwrite: bool = False) -> None:
@@ -37,6 +49,14 @@ def write_file(file_path: str, data: bytes, overwrite: bool = False) -> None:
         raise PermissionError(f"No permission to write file: {file_path}")
     except IOError as e:
         raise IOError(f"Error writing file {file_path}: {str(e)}")
+
+
+def write_file_with_iv(file_path: str, iv: bytes, data: bytes, overwrite: bool = False) -> None:
+    if len(iv) != 16:
+        raise ValueError(f"IV must be 16 bytes, got {len(iv)} bytes")
+
+    combined_data = iv + data
+    write_file(file_path, combined_data, overwrite)
 
 
 def derive_output_filename(input_path: str, operation: str, algorithm: str, mode: str) -> str:
