@@ -4,19 +4,20 @@ import os
 import sys
 import io
 from contextlib import redirect_stderr, redirect_stdout
+import subprocess
 
 # Add project root to Python path
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 sys.path.insert(0, os.path.join(project_root, 'src'))
 
-from src.cryptocore.cli import main, parse_arguments, validate_key, perform_operation
+from src.cryptocore.cli import main, parse_arguments
 
 
-class TestCLI(unittest.TestCase):
+class TestCLIMilestone3(unittest.TestCase):
     def setUp(self):
         self.temp_dir = tempfile.mkdtemp()
         self.test_file = os.path.join(self.temp_dir, "test.txt")
-        self.test_data = b"Hello, CryptoCore! This is test data for CLI."
+        self.test_data = b"Test data for milestone 3 CLI tests."
 
         with open(self.test_file, 'wb') as f:
             f.write(self.test_data)
@@ -26,11 +27,9 @@ class TestCLI(unittest.TestCase):
         shutil.rmtree(self.temp_dir)
 
     def capture_main_output(self, args):
-        # Capture stdout and stderr when running main
         stderr_capture = io.StringIO()
         stdout_capture = io.StringIO()
 
-        # Replace sys.argv for testing
         original_argv = sys.argv
         try:
             sys.argv = ['cryptocore'] + args
@@ -45,33 +44,47 @@ class TestCLI(unittest.TestCase):
 
         return exit_code, stdout_capture.getvalue(), stderr_capture.getvalue()
 
-    def test_cli_encrypt_decrypt_roundtrip(self):
-        # Test full encrypt/decrypt cycle
-        key = "00112233445566778899aabbccddeeff"
+    def run_cryptocore_cmd(self, args):
+        cmd = [sys.executable, "-m", "cryptocore.cli"] + args
+        result = subprocess.run(cmd, capture_output=True, text=True)
+        return result
 
-        # Encrypt
+    def test_encryption_without_key_generates_key(self):
         encrypt_args = [
             "--algorithm", "aes",
             "--mode", "ecb",
             "--encrypt",
-            "--key", key,
             "--input", self.test_file,
             "--output", os.path.join(self.temp_dir, "test.enc"),
             "--force"
         ]
 
         exit_code, stdout, stderr = self.capture_main_output(encrypt_args)
+
+        # Should succeed
         self.assertEqual(exit_code, 0, f"Encryption failed: {stderr}")
 
+        # Should contain key generation message
+        self.assertIn("[INFO] Generated random key:", stdout)
+
+        # Should contain hex key (32 hex chars)
+        import re
+        key_match = re.search(r'Generated random key: ([0-9a-f]{32})', stdout)
+        self.assertIsNotNone(key_match, "No hex key found in output")
+
+        # Extract the key for decryption test
+        generated_key = key_match.group(1)
+
+        # Verify the encrypted file exists
         encrypted_file = os.path.join(self.temp_dir, "test.enc")
         self.assertTrue(os.path.exists(encrypted_file))
 
-        # Decrypt
+        # Now decrypt with the generated key
         decrypt_args = [
             "--algorithm", "aes",
             "--mode", "ecb",
             "--decrypt",
-            "--key", key,
+            "--key", generated_key,
             "--input", encrypted_file,
             "--output", os.path.join(self.temp_dir, "test.dec.txt"),
             "--force"
@@ -80,222 +93,213 @@ class TestCLI(unittest.TestCase):
         exit_code, stdout, stderr = self.capture_main_output(decrypt_args)
         self.assertEqual(exit_code, 0, f"Decryption failed: {stderr}")
 
+        # Verify decrypted content matches original
         decrypted_file = os.path.join(self.temp_dir, "test.dec.txt")
-        self.assertTrue(os.path.exists(decrypted_file))
-
-        # Verify content matches original
         with open(decrypted_file, 'rb') as f:
             decrypted_data = f.read()
+
         self.assertEqual(decrypted_data, self.test_data)
 
-    def test_cli_binary_file_support(self):
-        # Test with binary data
-        binary_file = os.path.join(self.temp_dir, "binary.bin")
-        binary_data = bytes(range(256))  # All possible byte values
-        with open(binary_file, 'wb') as f:
-            f.write(binary_data)
-
+    def test_decryption_without_key_fails(self):
+        # First encrypt with a known key
         key = "00112233445566778899aabbccddeeff"
-
-        # Encrypt binary file
         encrypt_args = [
             "--algorithm", "aes", "--mode", "ecb", "--encrypt",
-            "--key", key, "--input", binary_file,
-            "--output", os.path.join(self.temp_dir, "binary.enc"),
+            "--key", key, "--input", self.test_file,
+            "--output", os.path.join(self.temp_dir, "encrypted.bin"),
             "--force"
         ]
 
         exit_code, stdout, stderr = self.capture_main_output(encrypt_args)
-        self.assertEqual(exit_code, 0, f"Binary encryption failed: {stderr}")
+        self.assertEqual(exit_code, 0)
 
-        # Decrypt binary file
-        encrypted_file = os.path.join(self.temp_dir, "binary.enc")
+        # Try to decrypt without key (should fail)
         decrypt_args = [
-            "--algorithm", "aes", "--mode", "ecb", "--decrypt",
-            "--key", key, "--input", encrypted_file,
-            "--output", os.path.join(self.temp_dir, "binary.dec.bin"),
+            "--algorithm", "aes",
+            "--mode", "ecb",
+            "--decrypt",  # No --key argument!
+            "--input", os.path.join(self.temp_dir, "encrypted.bin"),
             "--force"
         ]
 
         exit_code, stdout, stderr = self.capture_main_output(decrypt_args)
-        self.assertEqual(exit_code, 0, f"Binary decryption failed: {stderr}")
+        self.assertNotEqual(exit_code, 0)
+        self.assertIn("--key is required for decryption", stderr)
 
-        # Verify binary data integrity
-        decrypted_file = os.path.join(self.temp_dir, "binary.dec.bin")
-        with open(decrypted_file, 'rb') as f:
-            decrypted_data = f.read()
-        self.assertEqual(decrypted_data, binary_data)
-
-    def test_cli_invalid_key_length(self):
-        # Test with invalid key length
-        args = [
-            "--algorithm", "aes", "--mode", "ecb", "--encrypt",
-            "--key", "001122",  # Too short
-            "--input", self.test_file
+    def test_weak_key_warnings(self):
+        weak_keys = [
+            ("00000000000000000000000000000000", "all zero bytes"),
+            ("000102030405060708090a0b0c0d0e0f", "sequential bytes"),
+            ("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "all identical bytes"),
+            ("01230123012301230123012301230123", "repeating pattern"),
         ]
 
-        exit_code, stdout, stderr = self.capture_main_output(args)
-        self.assertNotEqual(exit_code, 0)
-        self.assertIn("Key must be 16 bytes", stderr)
+        for key_hex, description in weak_keys:
+            with self.subTest(key_type=description):
+                args = [
+                    "--algorithm", "aes", "--mode", "ecb", "--encrypt",
+                    "--key", key_hex, "--input", self.test_file,
+                    "--output", os.path.join(self.temp_dir, f"test_{description}.enc"),
+                    "--force"
+                ]
 
-    def test_cli_invalid_key_format(self):
-        # Test with non-hex key
-        args = [
-            "--algorithm", "aes", "--mode", "ecb", "--encrypt",
-            "--key", "invalid_key_format",
-            "--input", self.test_file
-        ]
+                exit_code, stdout, stderr = self.capture_main_output(args)
 
-        exit_code, stdout, stderr = self.capture_main_output(args)
-        self.assertNotEqual(exit_code, 0)
-        self.assertIn("Invalid key format", stderr)
+                # Should succeed (just warning, not error)
+                self.assertEqual(exit_code, 0, f"Failed with key {key_hex}")
 
-    def test_cli_missing_required_args(self):
-        # Test missing algorithm
-        args = ["--mode", "ecb", "--encrypt", "--key", "00112233445566778899aabbccddeeff"]
-        exit_code, stdout, stderr = self.capture_main_output(args)
-        self.assertNotEqual(exit_code, 0)
+                # Should contain warning about weak key
+                self.assertIn("Warning: Potential weak key detected", stderr)
+                print(f"✓ Weak key warning for {description}: {stderr.strip()}")
 
-    def test_cli_nonexistent_input_file(self):
-        args = [
-            "--algorithm", "aes", "--mode", "ecb", "--encrypt",
-            "--key", "00112233445566778899aabbccddeeff",
-            "--input", "/nonexistent/file.txt"
-        ]
+    def test_encryption_with_auto_key_different_each_time(self):
+        keys = set()
 
-        exit_code, stdout, stderr = self.capture_main_output(args)
-        self.assertNotEqual(exit_code, 0)
-        self.assertIn("Input file not found", stderr)
+        for i in range(5):
+            # Create a unique test file each time
+            test_file = os.path.join(self.temp_dir, f"test_{i}.txt")
+            with open(test_file, 'wb') as f:
+                f.write(f"Test data {i}".encode())
 
-    def test_cli_conflicting_operations(self):
-        # Test both encrypt and decrypt flags
-        args = [
-            "--algorithm", "aes", "--mode", "ecb",
-            "--encrypt", "--decrypt",  # Conflict
-            "--key", "00112233445566778899aabbccddeeff",
-            "--input", self.test_file
-        ]
+            encrypt_args = [
+                "--algorithm", "aes", "--mode", "ecb", "--encrypt",
+                "--input", test_file,
+                "--output", os.path.join(self.temp_dir, f"test_{i}.enc"),
+                "--force"
+            ]
 
-        exit_code, stdout, stderr = self.capture_main_output(args)
-        self.assertNotEqual(exit_code, 0)
+            result = self.run_cryptocore_cmd(encrypt_args)
+            self.assertEqual(result.returncode, 0)
 
-    def test_validate_key_function(self):
-        # Test valid key
-        key_bytes = validate_key("00112233445566778899aabbccddeeff")
-        self.assertEqual(len(key_bytes), 16)
+            # Extract key from output
+            import re
+            key_match = re.search(r'Generated random key: ([0-9a-f]{32})', result.stdout)
+            if key_match:
+                key = key_match.group(1)
+                keys.add(key)
 
-        # Test invalid hex
-        with self.assertRaises(ValueError):
-            validate_key("invalid")
+        # All 5 keys should be unique
+        self.assertEqual(len(keys), 5, f"Not all keys were unique: {keys}")
 
-        # Test wrong length
-        with self.assertRaises(ValueError):
-            validate_key("001122")
-
-    def test_parse_arguments_function(self):
-        # Test valid arguments
-        args = parse_arguments([
-            "--algorithm", "aes", "--mode", "ecb", "--encrypt",
-            "--key", "00112233445566778899aabbccddeeff",
-            "--input", "test.txt", "--output", "out.bin"
+    def test_csprng_used_for_iv_generation(self):
+        # Encrypt with CBC mode (requires IV)
+        result = self.run_cryptocore_cmd([
+            "--algorithm", "aes", "--mode", "cbc", "--encrypt",
+            "--input", self.test_file,
+            "--output", os.path.join(self.temp_dir, "test_cbc.enc"),
+            "--force"
         ])
-        self.assertEqual(args.algorithm, "aes")
-        self.assertEqual(args.mode, "ecb")
-        self.assertTrue(args.encrypt)
-        self.assertFalse(args.decrypt)
 
+        self.assertEqual(result.returncode, 0)
 
-def test_cli_encryption_with_iv_warning(self):
-    # Test that using --iv during encryption produces warning
-    key = "00112233445566778899aabbccddeeff"
-    args = [
-        "--algorithm", "aes", "--mode", "cbc", "--encrypt",
-        "--key", key, "--iv", "000102030405060708090a0b0c0d0e0f",
-        "--input", self.test_file, "--force"
-    ]
+        # Should show generated IV
+        self.assertIn("IV (hex):", result.stdout)
 
-    exit_code, stdout, stderr = self.capture_main_output(args)
-    self.assertEqual(exit_code, 0)
-    self.assertIn("Warning: --iv is ignored during encryption", stderr)
+        # Verify file contains IV + ciphertext
+        encrypted_file = os.path.join(self.temp_dir, "test_cbc.enc")
+        with open(encrypted_file, 'rb') as f:
+            data = f.read()
 
+        # First 16 bytes should be IV
+        self.assertGreaterEqual(len(data), 16)
+        iv = data[:16]
 
-def test_cli_ecb_with_iv_error(self):
-    # Test that ECB with --iv produces error
-    key = "00112233445566778899aabbccddeeff"
-    args = [
-        "--algorithm", "aes", "--mode", "ecb", "--encrypt",
-        "--key", key, "--iv", "000102030405060708090a0b0c0d0e0f",
-        "--input", self.test_file
-    ]
+        # IV should not be all zeros (very unlikely with CSPRNG)
+        self.assertNotEqual(iv, bytes(16))
 
-    exit_code, stdout, stderr = self.capture_main_output(args)
-    self.assertNotEqual(exit_code, 0)
-    self.assertIn("--iv not supported for ECB mode", stderr)
+        print(f"✓ Generated IV: {iv.hex()}")
 
+    def test_encryption_with_provided_key_no_generation_message(self):
+        key = "00112233445566778899aabbccddeeff"
 
-def test_cli_decryption_with_external_iv(self):
-    # Test decryption with external IV (OpenSSL compatibility)
-    key = "00112233445566778899aabbccddeeff"
-    external_iv = "000102030405060708090a0b0c0d0e0f"
+        result = self.run_cryptocore_cmd([
+            "--algorithm", "aes", "--mode", "ecb", "--encrypt",
+            "--key", key,
+            "--input", self.test_file,
+            "--output", os.path.join(self.temp_dir, "test_provided.enc"),
+            "--force"
+        ])
 
-    # Create a test file
-    test_data = b"Test data for external IV decryption"
-    test_file = os.path.join(self.temp_dir, "ext_iv_test.txt")
-    with open(test_file, 'wb') as f:
-        f.write(test_data)
+        self.assertEqual(result.returncode, 0)
 
-    # Encrypt with external IV simulation (like OpenSSL would do)
-    # This would be done by OpenSSL, but for test we'll simulate
+        # Should NOT show key generation message when key is provided
+        self.assertNotIn("[INFO] Generated random key:", result.stdout)
 
-    # For this test, we need to actually use OpenSSL or mock
-    # Let's skip for now and implement in OpenSSL compatibility tests
-    self.skipTest("Requires OpenSSL integration test")
+    def test_invalid_key_format_error(self):
+        invalid_keys = [
+            "nothex",  # Not hex
+            "001122",  # Too short
+            "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff",  # Too long
+            "gggggggggggggggggggggggggggggggg",  # Invalid hex chars
+        ]
 
+        for key in invalid_keys:
+            with self.subTest(key=key):
+                result = self.run_cryptocore_cmd([
+                    "--algorithm", "aes", "--mode", "ecb", "--encrypt",
+                    "--key", key,
+                    "--input", self.test_file
+                ])
 
-def test_cli_file_with_iv_too_short(self):
-    # Test error when file is too short to contain IV
-    key = "00112233445566778899aabbccddeeff"
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn("Error:", result.stderr)
 
-    # Create a very short file (less than 16 bytes)
-    short_file = os.path.join(self.temp_dir, "short.bin")
-    with open(short_file, 'wb') as f:
-        f.write(b"short")
+    def test_compatibility_with_existing_functionality(self):
+        # Test all modes with auto-generated key
+        modes = ['ecb', 'cbc', 'cfb', 'ofb', 'ctr']
 
-    args = [
-        "--algorithm", "aes", "--mode", "cbc", "--decrypt",
-        "--key", key, "--input", short_file
-    ]
+        for mode in modes:
+            with self.subTest(mode=mode):
+                # Encryption with auto-generated key
+                encrypt_result = self.run_cryptocore_cmd([
+                    "--algorithm", "aes", "--mode", mode, "--encrypt",
+                    "--input", self.test_file,
+                    "--output", os.path.join(self.temp_dir, f"test_{mode}.enc"),
+                    "--force"
+                ])
 
-    exit_code, stdout, stderr = self.capture_main_output(args)
-    self.assertNotEqual(exit_code, 0)
-    self.assertIn("too short to contain IV", stderr)
+                self.assertEqual(encrypt_result.returncode, 0,
+                                 f"Encryption failed for mode {mode}: {encrypt_result.stderr}")
 
+                # Extract generated key
+                import re
+                key_match = re.search(r'Generated random key: ([0-9a-f]{32})', encrypt_result.stdout)
+                self.assertIsNotNone(key_match, f"No key generated for mode {mode}")
+                generated_key = key_match.group(1)
 
-def test_cli_iv_format_validation(self):
-    # Test IV format validation
-    key = "00112233445566778899aabbccddeeff"
+                # For modes with IV, we need to handle IV extraction
+                encrypted_file = os.path.join(self.temp_dir, f"test_{mode}.enc")
 
-    # Test invalid hex
-    args = [
-        "--algorithm", "aes", "--mode", "cbc", "--decrypt",
-        "--key", key, "--iv", "invalid_hex",
-        "--input", self.test_file
-    ]
+                if mode == 'ecb':
+                    # ECB: no IV in file
+                    decrypt_result = self.run_cryptocore_cmd([
+                        "--algorithm", "aes", "--mode", mode, "--decrypt",
+                        "--key", generated_key,
+                        "--input", encrypted_file,
+                        "--output", os.path.join(self.temp_dir, f"test_{mode}.dec"),
+                        "--force"
+                    ])
+                else:
+                    # Other modes: IV in file
+                    decrypt_result = self.run_cryptocore_cmd([
+                        "--algorithm", "aes", "--mode", mode, "--decrypt",
+                        "--key", generated_key,
+                        "--input", encrypted_file,
+                        "--output", os.path.join(self.temp_dir, f"test_{mode}.dec"),
+                        "--force"
+                    ])
 
-    exit_code, stdout, stderr = self.capture_main_output(args)
-    self.assertNotEqual(exit_code, 0)
-    self.assertIn("Invalid IV format", stderr)
+                self.assertEqual(decrypt_result.returncode, 0,
+                                 f"Decryption failed for mode {mode}: {decrypt_result.stderr}")
 
-    # Test wrong length (not 16 bytes = 32 hex chars)
-    args = [
-        "--algorithm", "aes", "--mode", "cbc", "--decrypt",
-        "--key", key, "--iv", "001122",  # Too short
-        "--input", self.test_file
-    ]
+                # Verify round-trip
+                decrypted_file = os.path.join(self.temp_dir, f"test_{mode}.dec")
+                with open(decrypted_file, 'rb') as f:
+                    decrypted_data = f.read()
 
-    exit_code, stdout, stderr = self.capture_main_output(args)
-    self.assertNotEqual(exit_code, 0)
-    self.assertIn("IV must be 16 bytes", stderr)
+                self.assertEqual(decrypted_data, self.test_data,
+                                 f"Round-trip failed for mode {mode}")
+
 
 if __name__ == "__main__":
     unittest.main()

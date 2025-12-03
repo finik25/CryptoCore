@@ -11,6 +11,7 @@ setup(
     entry_points={
         "console_scripts": [
             "cryptocore=cryptocore.cli:main",
+            "cryptocore-nist=cryptocore.utils.nist_tool:main",
         ],
     },
     python_requires=">=3.13",

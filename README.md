@@ -7,6 +7,9 @@ Minimalist cryptographic provider in Python. Educational project focused on unde
 
 - **AES-128 encryption/decryption** in multiple modes
 - **Five supported modes**: ECB, CBC, CFB, OFB, CTR
+- **Automatic key generation** for encryption operations
+- **Weak key detection** with warnings for insecure keys
+- **NIST STS test file generator** for CSPRNG verification
 - **PKCS#7 padding** for modes that require it
 - **IV (Initialization Vector) handling** with secure generation
 - **Binary file handling** - works with any file type
@@ -36,6 +39,7 @@ Verify installation:
 ```powershell
 # Check command availability
 cryptocore --help
+cryptocore-nist --help
 
 # Verify package installation  
 pip list | Select-String cryptocore
@@ -45,18 +49,25 @@ pip list | Select-String cryptocore
 
 ### Basic Operations
 
-#### ECB Mode (no IV):
+#### Encryption with Auto-generated Key:
 ```powershell
-# Encryption
-cryptocore --algorithm aes --mode ecb --encrypt --key 00112233445566778899aabbccddeeff --input plaintext.txt
+# Encryption without --key (key will be generated automatically)
+cryptocore --algorithm aes --mode ecb --encrypt --input plaintext.txt
+[INFO] Generated random key: 7d0776fd22695814da56760ed31aa7e2
+Success: encrypt completed
+  Output file: plaintext.txt.enc
+  Key (hex): 7d0776fd22695814da56760ed31aa7e2 (auto-generated)
 
-# Decryption
-cryptocore --algorithm aes --mode ecb --decrypt --key 00112233445566778899aabbccddeeff --input ciphertext.bin
+# Decryption (key is always required)
+cryptocore --algorithm aes --mode ecb --decrypt --key 7d0776fd22695814da56760ed31aa7e2 --input plaintext.txt.enc
 ```
 
-#### CBC Mode (with IV):
+#### Encryption with Provided Key:
 ```powershell
-# Encryption (IV auto-generated)
+# ECB Mode (no IV):
+cryptocore --algorithm aes --mode ecb --encrypt --key 00112233445566778899aabbccddeeff --input plaintext.txt
+
+# CBC Mode (with IV):
 cryptocore --algorithm aes --mode cbc --encrypt --key 00112233445566778899aabbccddeeff --input plaintext.txt
 
 # Decryption with provided IV
@@ -66,18 +77,43 @@ cryptocore --algorithm aes --mode cbc --decrypt --key 00112233445566778899aabbcc
 cryptocore --algorithm aes --mode cbc --decrypt --key 00112233445566778899aabbccddeeff --input ciphertext.bin
 ```
 
-#### CFB, OFB, CTR Modes (stream modes):
+#### Weak Key Detection:
 ```powershell
-# CFB mode
-cryptocore --algorithm aes --mode cfb --encrypt --key 00112233445566778899aabbccddeeff --input plaintext.txt
-cryptocore --algorithm aes --mode cfb --decrypt --key 00112233445566778899aabbccddeeff --input ciphertext.bin
+# All zero bytes (warning)
+cryptocore --algorithm aes --mode ecb --encrypt --key 00000000000000000000000000000000 --input test.txt
+Warning: Potential weak key detected - Key consists of all zero bytes; Key consists of all identical bytes; Key appears to be a repeating 4-byte pattern
+  Key (hex): 00000000000000000000000000000000
 
-# OFB mode  
-cryptocore --algorithm aes --mode ofb --encrypt --key 00112233445566778899aabbccddeeff --input plaintext.txt
+# Sequential bytes (warning)
+cryptocore --algorithm aes --mode ecb --encrypt --key 000102030405060708090a0b0c0d0e0f --input test.txt
+Warning: Potential weak key detected - Key consists of sequential bytes (0, 1, 2, ...)
+  Key (hex): 000102030405060708090a0b0c0d0e0f
 
-# CTR mode
-cryptocore --algorithm aes --mode ctr --encrypt --key 00112233445566778899aabbccddeeff --input plaintext.txt
+# All identical bytes (warning)
+cryptocore --algorithm aes --mode ecb --encrypt --key aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa --input test.txt
+Warning: Potential weak key detected - Key consists of all identical bytes; Key appears to be a repeating 4-byte pattern
+  Key (hex): aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 ```
+
+#### NIST Statistical Test Suite Verification:
+```powershell
+# Generate test data (10 MB recommended)
+cryptocore-nist nist_test_data.bin --size 10
+
+# Alternative method
+python -m cryptocore.utils.nist_tool nist_test_data.bin --size 10
+```
+
+**Running NIST STS:**
+1. Download NIST Statistical Test Suite from [NIST website](https://csrc.nist.gov/projects/random-bit-generation/documentation-and-software)
+2. Extract and compile: `make` (requires C compiler)
+3. Run: `./assess 83886080` (for 10 MB file = 83,886,080 bits)
+4. Follow interactive prompts to select the test file
+
+**Expected Results:**
+- Most tests should pass (p-value ≥ 0.01)
+- 1-2 failures are statistically expected for truly random data
+- Widespread failures indicate flawed random number generation
 
 ### Advanced Options
 
@@ -121,8 +157,9 @@ cryptocore --algorithm aes --mode cbc --decrypt --key 00112233445566778899aabbcc
 cryptocore --algorithm aes --mode cbc --encrypt --key 00112233445566778899aabbccddeeff --input plain.txt --output cryptocore_encrypted.bin
 
 # Extract IV from first 16 bytes (for OpenSSL decryption)
-$iv = (Get-Content cryptocore_encrypted.bin -AsByteStream -TotalCount 16 | ForEach-Object {$_.ToString("X2")}) -join ""
-$iv_lower = $iv.ToLower()
+$iv_bytes = Get-Content cryptocore_encrypted.bin -AsByteStream -TotalCount 16
+$iv_hex = -join ($iv_bytes | ForEach-Object {$_.ToString("X2")})
+$iv_lower = $iv_hex.ToLower()
 
 # Create file without IV for OpenSSL
 Get-Content cryptocore_encrypted.bin -AsByteStream | Select-Object -Skip 16 | Set-Content ciphertext_only.bin -AsByteStream
@@ -144,6 +181,15 @@ openssl enc -aes-128-cbc -d -K 00112233445566778899aabbccddeeff -iv $iv_lower -i
 python -m unittest discover tests -v
 ```
 
+### CSPRNG-Specific Tests
+```powershell
+# Run CSPRNG tests
+python -m unittest tests.test_csprng -v
+
+# Run CLI tests with automatic key generation
+python -m unittest tests.test_cli -v
+```
+
 ### OpenSSL Compatibility Tests
 To run full OpenSSL compatibility tests, ensure OpenSSL is installed and in your PATH:
 
@@ -160,20 +206,12 @@ python -m unittest tests.test_openssl_compatibility -v
 # Create test file
 echo "Hello CryptoCore!" > test.txt
 
-# Test all modes
-$key = "00112233445566778899aabbccddeeff"
+# Test all modes with auto-generated keys
+cryptocore --algorithm aes --mode ecb --encrypt --input test.txt --force
+cryptocore --algorithm aes --mode cbc --encrypt --input test.txt --force
 
-# ECB
-cryptocore --algorithm aes --mode ecb --encrypt --key $key --input test.txt --force
-cryptocore --algorithm aes --mode ecb --decrypt --key $key --input test.txt.enc --force
-
-# CBC
-cryptocore --algorithm aes --mode cbc --encrypt --key $key --input test.txt --force
-cryptocore --algorithm aes --mode cbc --decrypt --key $key --input test.txt.enc --force
-
-# Verify integrity
-Get-FileHash test.txt
-Get-FileHash test.dec.txt
+# Verify file creation
+Get-ChildItem test.*
 ```
 
 ## Project Structure
@@ -189,11 +227,13 @@ CryptoCore/
 │   │   └── ctr.py          # CTR mode implementation
 │   ├── utils/
 │   │   ├── padding.py      # PKCS#7 padding
-│   │   └── keys.py
+│   │   ├── csprng.py       # Cryptographically secure random number generator
+│   │   └── nist_tool.py    # NIST test file generator
 │   ├── cli.py              # Command-line interface
 │   └── file_io.py          # File handling with IV support
 ├── tests/                  # Comprehensive test suite
 │   ├── test_cli.py
+│   ├── test_csprng.py      # CSPRNG tests
 │   ├── test_ecb.py
 │   ├── test_cbc.py
 │   ├── test_cfb.py
@@ -213,12 +253,15 @@ CryptoCore/
 - **AES-128** (using pycryptodome for core operations)
 - **ECB, CBC, CFB, OFB, CTR** modes with manual implementation
 - **PKCS#7 padding** with full validation
+- **CSPRNG** using `os.urandom()` for cryptographic security
 - **Binary data handling** (no encoding assumptions)
 
 ### Security Notes
 
 - Core AES operations delegated to pycryptodome (industry standard)
-- IV generation uses cryptographically secure random numbers (`secrets.token_bytes`)
+- IV generation uses cryptographically secure random numbers
+- Automatic key generation uses CSPRNG (`os.urandom()`)
+- Weak key detection warns about obviously insecure keys
 - Educational focus - not for production cryptographic use
 - All file operations in binary mode
 
@@ -249,4 +292,6 @@ openssl version
 - Run PowerShell as Administrator if writing to protected directories
 - Use `--force` flag to overwrite existing files
 
-
+**Auto-generated key not displayed:**
+- Ensure you're not providing `--key` argument for encryption
+- Check console output for `[INFO] Generated random key:` message
