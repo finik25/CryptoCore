@@ -1,149 +1,165 @@
 import argparse
 import sys
 import os
-import secrets
-from typing import Optional
-
-# Add path for correct imports when running directly
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
+from typing import Optional, List
 
 try:
+    # When the package is installed
+    from cryptocore.utils.csprng import generate_random_key, generate_random_iv
     from cryptocore.file_io import read_file, write_file, derive_output_filename, read_file_with_iv, write_file_with_iv
     from cryptocore.modes.ecb import encrypt_ecb, decrypt_ecb
     from cryptocore.modes.cbc import encrypt_cbc, decrypt_cbc
     from cryptocore.modes.cfb import encrypt_cfb, decrypt_cfb
     from cryptocore.modes.ofb import encrypt_ofb, decrypt_ofb
     from cryptocore.modes.ctr import encrypt_ctr, decrypt_ctr
-    from cryptocore.utils.csprng import generate_random_key, generate_random_iv
+
+    _import_from_package = True
 except ImportError:
-    # Alternative path for direct execution
-    from src.cryptocore.file_io import read_file, write_file, derive_output_filename, read_file_with_iv, \
-        write_file_with_iv
-    from src.cryptocore.modes.ecb import encrypt_ecb, decrypt_ecb
-    from src.cryptocore.modes.cbc import encrypt_cbc, decrypt_cbc
-    from src.cryptocore.modes.cfb import encrypt_cfb, decrypt_cfb
-    from src.cryptocore.modes.ofb import encrypt_ofb, decrypt_ofb
-    from src.cryptocore.modes.ctr import encrypt_ctr, decrypt_ctr
-    from src.cryptocore.utils.csprng import generate_random_key, generate_random_iv
+    try:
+        # When we launch from source
+        from src.cryptocore.utils.csprng import generate_random_key, generate_random_iv
+        from src.cryptocore.file_io import read_file, write_file, derive_output_filename, read_file_with_iv, \
+            write_file_with_iv
+        from src.cryptocore.modes.ecb import encrypt_ecb, decrypt_ecb
+        from src.cryptocore.modes.cbc import encrypt_cbc, decrypt_cbc
+        from src.cryptocore.modes.cfb import encrypt_cfb, decrypt_cfb
+        from src.cryptocore.modes.ofb import encrypt_ofb, decrypt_ofb
+        from src.cryptocore.modes.ctr import encrypt_ctr, decrypt_ctr
+
+        _import_from_package = False
+    except ImportError as e:
+        print(f"Error importing cryptocore modules: {e}", file=sys.stderr)
+        sys.exit(1)
+
+try:
+    if _import_from_package:
+        from cryptocore.hash.sha256 import SHA256
+        from cryptocore.hash.sha3_256 import SHA3_256
+    else:
+        from src.cryptocore.hash.sha256 import SHA256
+        from src.cryptocore.hash.sha3_256 import SHA3_256
+    _hash_available = True
+except ImportError:
+    _hash_available = False
+    SHA256 = None
+    SHA3_256 = None
 
 
 def parse_arguments(args=None):
+    if args is None:
+        args = sys.argv[1:]
+
+    has_subcommand = args and not args[0].startswith('--')
+
+    if has_subcommand:
+        return _parse_with_subcommands(args)
+    else:
+        return _parse_legacy(args)
+
+
+def _parse_with_subcommands(args):
     parser = argparse.ArgumentParser(
         description="CryptoCore - Minimalist Cryptographic Provider",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  # ECB Encryption with provided key
-  cryptocore --algorithm aes --mode ecb --encrypt --key 00112233445566778899aabbccddeeff --input plaintext.txt
+  # Encryption with subcommand (recommended)
+  cryptocore crypto --algorithm aes --mode cbc --encrypt --input plaintext.txt
 
-  # CBC Encryption with auto-generated key
+  # Hash computation (stdout)
+  cryptocore dgst --algorithm sha256 --input document.pdf
+
+  # Hash computation to file
+  cryptocore dgst --algorithm sha256 --input document.pdf --output hash.txt
+
+  # Hash computation with force overwrite
+  cryptocore dgst --algorithm sha256 --input document.pdf --output hash.txt --force
+
+  # Legacy mode (for backward compatibility)
   cryptocore --algorithm aes --mode cbc --encrypt --input plaintext.txt
-  # Output will display the generated key
-
-  # CBC Decryption with provided IV
-  cryptocore --algorithm aes --mode cbc --decrypt --key 00112233445566778899aabbccddeeff --iv aabbccddeeff00112233445566778899 --input ciphertext.bin
-
-  # CBC Decryption (IV read from file)
-  cryptocore --algorithm aes --mode cbc --decrypt --key 00112233445566778899aabbccddeeff --input ciphertext.bin
-
-  # Encryption with weak key warning
-  cryptocore --algorithm aes --mode cbc --encrypt --key 00000000000000000000000000000000 --input plaintext.txt
-  # Warning will be displayed about weak key
-
-Key generation rules:
-  - Encryption: --key is optional. If not provided, a secure random key will be generated and displayed.
-  - Decryption: --key is mandatory. Must provide the key used for encryption.
 """
     )
 
-    # Required arguments
-    parser.add_argument(
-        '--algorithm',
-        required=True,
-        choices=['aes'],
-        help='Cryptographic algorithm (only aes supported for now)'
+    subparsers = parser.add_subparsers(
+        dest='command',
+        title='commands',
+        description='Available commands',
+        help='Command to execute',
+        required=True
     )
 
-    parser.add_argument(
-        '--mode',
-        required=True,
-        choices=['ecb', 'cbc', 'cfb', 'ofb', 'ctr'],
-        help='Mode of operation'
-    )
+    # 'crypto' command
+    crypto_parser = subparsers.add_parser('crypto', help='Encryption and decryption operations')
+    _add_crypto_arguments(crypto_parser)
 
-    # Operation mode (exactly one required)
-    operation_group = parser.add_mutually_exclusive_group(required=True)
-    operation_group.add_argument('--encrypt', action='store_true', help='Encrypt operation')
-    operation_group.add_argument('--decrypt', action='store_true', help='Decrypt operation')
-
-    # Key argument (optional for encryption, required for decryption)
-    parser.add_argument(
-        '--key',
-        required=False,
-        help='Encryption key as hexadecimal string (16 bytes for AES-128). '
-             'For encryption: optional (random key generated if not provided). '
-             'For decryption: mandatory.'
-    )
-
-    # IV argument (optional for decryption, ignored for encryption)
-    parser.add_argument(
-        '--iv',
-        required=False,
-        help='Initialization Vector as hexadecimal string (16 bytes). '
-             'Only used for decryption when IV is not stored in the file. '
-             'Ignored for encryption (IV is auto-generated).'
-    )
-
-    # File arguments
-    parser.add_argument(
-        '--input',
-        required=True,
-        help='Input file path'
-    )
-
-    parser.add_argument(
-        '--output',
-        required=False,
-        help='Output file path (auto-generated if not provided)'
-    )
-
-    parser.add_argument(
-        '--force',
-        action='store_true',
-        help='Overwrite output file if it exists'
-    )
+    # 'dgst' command (only if hashing is available)
+    if _hash_available:
+        dgst_parser = subparsers.add_parser('dgst', help='Compute cryptographic hash of files')
+        _add_dgst_arguments(dgst_parser)
 
     return parser.parse_args(args)
 
 
+def _parse_legacy(args):
+    parser = argparse.ArgumentParser(
+        description="CryptoCore - Minimalist Cryptographic Provider (legacy mode)",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Note: This is legacy mode. For new features like hashing, use subcommands.
+"""
+    )
+
+    _add_crypto_arguments(parser)
+    parsed_args = parser.parse_args(args)
+    parsed_args.command = 'crypto'
+    return parsed_args
+
+
+def _add_crypto_arguments(parser):
+    parser.add_argument('--algorithm', required=True, choices=['aes'], help='Cryptographic algorithm')
+    parser.add_argument('--mode', required=True, choices=['ecb', 'cbc', 'cfb', 'ofb', 'ctr'], help='Mode of operation')
+
+    operation_group = parser.add_mutually_exclusive_group(required=True)
+    operation_group.add_argument('--encrypt', action='store_true')
+    operation_group.add_argument('--decrypt', action='store_true')
+
+    parser.add_argument('--key', required=False, help='Encryption key as hexadecimal string')
+    parser.add_argument('--iv', required=False, help='Initialization Vector as hexadecimal string')
+    parser.add_argument('--input', required=True, help='Input file path')
+    parser.add_argument('--output', required=False, help='Output file path')
+    parser.add_argument('--force', action='store_true', help='Overwrite output file if it exists')
+
+
+def _add_dgst_arguments(parser):
+    parser.add_argument('--algorithm', required=True, choices=['sha256', 'sha3-256'], help='Hash algorithm')
+    parser.add_argument('--input', required=True, help='Input file path (use - for stdin)')
+    parser.add_argument('--output', required=False, help='Output file for hash (optional)')
+    parser.add_argument('--force', action='store_true',
+                        help='Overwrite output file if it exists (optional)')
+
+
 def validate_key(key_hex: str) -> bytes:
     try:
-        # Clean up hex string (remove 0x, \x prefixes, spaces)
         clean_key = key_hex.lower().replace('0x', '').replace('\\x', '').replace(' ', '')
-
-        # Convert hex to bytes
         key_bytes = bytes.fromhex(clean_key)
 
-        # Check length for AES-128
         if len(key_bytes) != 16:
-            raise ValueError(f"Key must be 16 bytes (128 bits) for AES-128, got {len(key_bytes)} bytes")
+            raise ValueError(f"Key must be 16 bytes, got {len(key_bytes)} bytes")
 
         return key_bytes
 
     except ValueError as e:
         if "non-hexadecimal number" in str(e):
-            raise ValueError(f"Invalid key format: '{key_hex}'. Key must be a hexadecimal string (32 hex chars)")
+            raise ValueError(f"Invalid key format: '{key_hex}'. Must be 32 hex chars")
         else:
             raise e
 
 
 def validate_iv(iv_hex: str) -> bytes:
     try:
-        # Clean up hex string
         clean_iv = iv_hex.lower().replace('0x', '').replace('\\x', '').replace(' ', '')
         iv_bytes = bytes.fromhex(clean_iv)
 
-        # Check length
         if len(iv_bytes) != 16:
             raise ValueError(f"IV must be 16 bytes, got {len(iv_bytes)} bytes")
 
@@ -151,7 +167,7 @@ def validate_iv(iv_hex: str) -> bytes:
 
     except ValueError as e:
         if "non-hexadecimal number" in str(e):
-            raise ValueError(f"Invalid IV format: '{iv_hex}'. IV must be a hexadecimal string (32 hex chars)")
+            raise ValueError(f"Invalid IV format: '{iv_hex}'. Must be 32 hex chars")
         else:
             raise e
 
@@ -159,22 +175,17 @@ def validate_iv(iv_hex: str) -> bytes:
 def check_weak_key(key: bytes):
     warnings = []
 
-    # Check for all zero bytes
     if all(b == 0 for b in key):
         warnings.append("Key consists of all zero bytes")
 
-    # Check for sequential bytes (0, 1, 2, 3, ...)
     if all(key[i] == i for i in range(len(key))):
         warnings.append("Key consists of sequential bytes (0, 1, 2, ...)")
 
-    # Check for all same bytes
     if all(b == key[0] for b in key):
         warnings.append("Key consists of all identical bytes")
 
-    # Check for repeating patterns (e.g., 012301230123...)
     if len(key) >= 4:
         pattern = key[:4]
-        # Check if pattern repeats throughout the key
         repeats_cleanly = True
         for i in range(0, len(key), 4):
             if i + 4 <= len(key) and key[i:i + 4] != pattern:
@@ -183,7 +194,6 @@ def check_weak_key(key: bytes):
         if repeats_cleanly:
             warnings.append("Key appears to be a repeating 4-byte pattern")
 
-    # Print warnings if any
     if warnings:
         warning_msg = "Warning: Potential weak key detected - "
         if len(warnings) == 1:
@@ -194,77 +204,63 @@ def check_weak_key(key: bytes):
         print(f"  Key (hex): {key.hex()}", file=sys.stderr)
 
 
-def perform_operation(args):
+def perform_crypto_operation(args):
     operation = 'encrypt' if args.encrypt else 'decrypt'
 
-    # Key handling logic
     generated_key = None
     if operation == 'encrypt':
         if args.key is None:
-            # Generate random key for encryption
             generated_key = generate_random_key()
             key = generated_key
             print(f"[INFO] Generated random key: {key.hex()}", file=sys.stdout)
         else:
-            # Validate provided key
             try:
                 key = validate_key(args.key)
             except ValueError as e:
                 print(f"Error: {e}", file=sys.stderr)
                 sys.exit(1)
-
-            # Check for weak keys
             check_weak_key(key)
-    else:  # decryption
+    else:
         if args.key is None:
             print(f"Error: --key is required for decryption", file=sys.stderr)
             sys.exit(1)
 
-        # Validate provided key
         try:
             key = validate_key(args.key)
         except ValueError as e:
             print(f"Error: {e}", file=sys.stderr)
             sys.exit(1)
 
-        # Check for weak keys (warning only for decryption)
         check_weak_key(key)
 
-    # Validate IV usage for ECB mode
     if args.mode == 'ecb' and args.iv:
         print(f"Error: --iv not supported for ECB mode", file=sys.stderr)
         sys.exit(1)
 
-    # Handle IV based on operation
     iv = None
     input_data = None
 
     if operation == 'encrypt':
-        # Read plaintext for encryption
         try:
             input_data = read_file(args.input)
         except (FileNotFoundError, PermissionError, IOError) as e:
             print(f"Error reading input file: {e}", file=sys.stderr)
             sys.exit(1)
 
-        # Warn if IV provided during encryption
         if args.iv:
-            print(f"Warning: --iv is ignored during encryption. IV will be generated randomly.", file=sys.stderr)
+            print(f"Warning: --iv is ignored during encryption", file=sys.stderr)
 
-        # Generate IV for modes that need it
         if args.mode != 'ecb':
             iv = generate_random_iv()
 
-    else:  # decryption
+    else:
         if args.iv:
-            # IV provided as argument - file does NOT contain IV
             try:
                 iv = validate_iv(args.iv)
             except ValueError as e:
                 print(f"Error: {e}", file=sys.stderr)
                 sys.exit(1)
 
-            # Read ciphertext WITHOUT IV
             try:
                 input_data = read_file(args.input)
             except (FileNotFoundError, PermissionError, IOError) as e:
@@ -272,7 +268,6 @@ def perform_operation(args):
                 sys.exit(1)
 
         elif args.mode != 'ecb':
-            # No IV provided - read IV from first 16 bytes of file
             try:
                 iv, input_data = read_file_with_iv(args.input)
             except (FileNotFoundError, PermissionError, IOError, ValueError) as e:
@@ -280,14 +275,12 @@ def perform_operation(args):
                 sys.exit(1)
 
         else:
-            # ECB decryption, no IV needed
             try:
                 input_data = read_file(args.input)
             except (FileNotFoundError, PermissionError, IOError) as e:
                 print(f"Error reading input file: {e}", file=sys.stderr)
                 sys.exit(1)
 
-    # Perform cryptographic operation
     try:
         if args.mode == 'ecb':
             if operation == 'encrypt':
@@ -342,29 +335,23 @@ def perform_operation(args):
         print(f"Unexpected error during {operation}: {e}", file=sys.stderr)
         sys.exit(1)
 
-    # Determine output filename
     if args.output:
         output_path = args.output
     else:
         output_path = derive_output_filename(args.input, operation, args.algorithm, args.mode)
 
-    # Write output file as binary
     try:
         if operation == 'encrypt' and iv is not None:
-            # Write IV + ciphertext for encryption with IV modes
             write_file_with_iv(output_path, iv, output_data, overwrite=args.force)
 
-            # Print summary information
             print(f"Success: {operation} completed", file=sys.stdout)
             print(f"  Output file: {output_path}", file=sys.stdout)
             print(f"  IV (hex): {iv.hex()}", file=sys.stdout)
             if generated_key:
                 print(f"  Key (hex): {key.hex()} (auto-generated)", file=sys.stdout)
         else:
-            # Write just ciphertext/plaintext
             write_file(output_path, output_data, overwrite=args.force)
 
-            # Print summary information
             print(f"Success: {operation} completed", file=sys.stdout)
             print(f"  Output file: {output_path}", file=sys.stdout)
             if generated_key:
@@ -374,10 +361,97 @@ def perform_operation(args):
         sys.exit(1)
 
 
+def perform_dgst_operation(args):
+    if not _hash_available:
+        print("Error: Hash functionality not available", file=sys.stderr)
+        sys.exit(1)
+
+    if args.algorithm == 'sha256':
+        hash_class = SHA256
+    elif args.algorithm == 'sha3-256':
+        hash_class = SHA3_256
+    else:
+        print(f"Error: Unsupported algorithm: {args.algorithm}", file=sys.stderr)
+        sys.exit(1)
+
+    # Check if output file exists and --force is not specified
+    if args.output and os.path.exists(args.output) and not args.force:
+        print(f"Error: File exists: {args.output}. Use --force to overwrite", file=sys.stderr)
+        sys.exit(1)
+
+    if args.input == '-':
+        import sys as global_sys
+        try:
+            data = global_sys.stdin.buffer.read()
+            hasher = hash_class()
+            hasher.update(data)
+            hash_hex = hasher.hexdigest()
+            output_line = f"{hash_hex} -\n"
+        except Exception as e:
+            print(f"Error reading from stdin: {e}", file=global_sys.stderr)
+            global_sys.exit(1)
+    else:
+        try:
+            hasher = hash_class()
+            with open(args.input, 'rb') as f:
+                while chunk := f.read(8192):
+                    hasher.update(chunk)
+            hash_hex = hasher.hexdigest()
+            output_line = f"{hash_hex}  {args.input}\n"
+        except FileNotFoundError:
+            print(f"Error: File not found: {args.input}", file=sys.stderr)
+            sys.exit(1)
+        except PermissionError:
+            print(f"Error: Permission denied: {args.input}", file=sys.stderr)
+            sys.exit(1)
+        except Exception as e:
+            print(f"Error processing file: {e}", file=sys.stderr)
+            sys.exit(1)
+
+    if args.output:
+        try:
+            # Create directory if it doesn't exist
+            output_dir = os.path.dirname(args.output)
+            if output_dir and not os.path.exists(output_dir):
+                os.makedirs(output_dir, exist_ok=True)
+
+            # Write to file with appropriate mode
+            mode = 'w' if args.force else 'x'  # 'x' mode fails if file exists
+            with open(args.output, mode) as f:
+                f.write(output_line)
+            print(f"Hash written to: {args.output}", file=sys.stdout)
+        except FileExistsError:
+            # This should not happen since we checked above, but just in case
+            print(f"Error: File exists: {args.output}. Use --force to overwrite", file=sys.stderr)
+            sys.exit(1)
+        except PermissionError:
+            print(f"Error: Permission denied writing to: {args.output}", file=sys.stderr)
+            sys.exit(1)
+        except IOError as e:
+            print(f"Error writing to file: {e}", file=sys.stderr)
+            sys.exit(1)
+        except Exception as e:
+            print(f"Unexpected error writing to file: {e}", file=sys.stderr)
+            sys.exit(1)
+    else:
+        if sys.stdout.isatty():
+            print(output_line, end='')
+        else:
+            sys.stdout.write(output_line)
+
+
 def main():
     try:
         args = parse_arguments()
-        perform_operation(args)
+
+        if args.command == 'crypto':
+            perform_crypto_operation(args)
+        elif args.command == 'dgst':
+            perform_dgst_operation(args)
+        else:
+            print(f"Error: Unknown command: {args.command}", file=sys.stderr)
+            sys.exit(1)
+
     except KeyboardInterrupt:
         print("\nOperation cancelled by user", file=sys.stderr)
         sys.exit(1)

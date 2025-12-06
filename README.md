@@ -6,15 +6,17 @@ Minimalist cryptographic provider in Python. Educational project focused on unde
 ## Features
 
 - **AES-128 encryption/decryption** in multiple modes
-- **Five supported modes**: ECB, CBC, CFB, OFB, CTR
+- **SHA-256 and SHA3-256 hashing** with optional file output
+- **Five supported AES modes**: ECB, CBC, CFB, OFB, CTR
 - **Automatic key generation** for encryption operations
 - **Weak key detection** with warnings for insecure keys
 - **NIST STS test file generator** for CSPRNG verification
 - **PKCS#7 padding** for modes that require it
-- **IV (Initialization Vector) handling** with secure generation
+- **IV (Initialization Vector) handling** with secure generation and storage
 - **Binary file handling** - works with any file type
 - **OpenSSL compatibility** - verified against industry standard
 - **Command-line interface** with comprehensive validation
+- **Comprehensive test suite** - 126+ tests covering edge cases and interoperability
 
 ## Requirements
 
@@ -41,138 +43,105 @@ Verify installation:
 cryptocore --help
 cryptocore-nist --help
 
-# Verify package installation  
+# Verify package installation
 pip list | Select-String cryptocore
 ```
 
 ## Usage
+
+CryptoCore supports two command modes: subcommands (recommended) and legacy mode.
+
+### Subcommands Mode (Recommended)
+
+#### Encryption and Decryption:
+```powershell
+# Encryption with auto-generated key
+cryptocore crypto --algorithm aes --mode ecb --encrypt --input plaintext.txt
+
+# Decryption with provided key
+cryptocore crypto --algorithm aes --mode cbc --decrypt --key 00112233445566778899aabbccddeeff --input ciphertext.bin
+```
+
+#### Hash Computation:
+```powershell
+# SHA-256 hash to stdout
+cryptocore dgst --algorithm sha256 --input document.pdf
+
+# SHA3-256 hash to stdout
+cryptocore dgst --algorithm sha3-256 --input document.pdf
+
+# SHA-256 hash to file
+cryptocore dgst --algorithm sha256 --input document.pdf --output hash.txt
+
+# Hash from stdin
+echo -n "Hello World" | cryptocore dgst --algorithm sha256 --input -
+```
+
+#### Output File Support:
+- **Without `--output`**: Hash is printed to stdout
+- **With `--output`**: Hash is written to specified file
+- Format: `{hash}  {filename}` (or `{hash} -` for stdin)
+
+### Legacy Mode
+
+For backward compatibility, you can still use the old syntax:
+
+```powershell
+# Encryption (legacy mode)
+cryptocore --algorithm aes --mode ecb --encrypt --input plaintext.txt
+
+# Note: Legacy mode doesn't support hash operations
+```
+
+## Examples
 
 ### Basic Operations
 
 #### Encryption with Auto-generated Key:
 ```powershell
 # Encryption without --key (key will be generated automatically)
-cryptocore --algorithm aes --mode ecb --encrypt --input plaintext.txt
+cryptocore crypto --algorithm aes --mode ecb --encrypt --input plaintext.txt
 [INFO] Generated random key: 7d0776fd22695814da56760ed31aa7e2
 Success: encrypt completed
   Output file: plaintext.txt.enc
   Key (hex): 7d0776fd22695814da56760ed31aa7e2 (auto-generated)
 
 # Decryption (key is always required)
-cryptocore --algorithm aes --mode ecb --decrypt --key 7d0776fd22695814da56760ed31aa7e2 --input plaintext.txt.enc
+cryptocore crypto --algorithm aes --mode ecb --decrypt --key 7d0776fd22695814da56760ed31aa7e2 --input plaintext.txt.enc
 ```
 
-#### Encryption with Provided Key:
+#### Encryption with Explicit IV:
 ```powershell
-# ECB Mode (no IV):
-cryptocore --algorithm aes --mode ecb --encrypt --key 00112233445566778899aabbccddeeff --input plaintext.txt
+# Encryption with specified IV (CBC, CFB, OFB, CTR modes)
+cryptocore crypto --algorithm aes --mode cbc --encrypt --key 00112233445566778899aabbccddeeff --iv 000102030405060708090a0b0c0d0e0f --input data.txt
 
-# CBC Mode (with IV):
-cryptocore --algorithm aes --mode cbc --encrypt --key 00112233445566778899aabbccddeeff --input plaintext.txt
-
-# Decryption with provided IV
-cryptocore --algorithm aes --mode cbc --decrypt --key 00112233445566778899aabbccddeeff --iv aabbccddeeff00112233445566778899 --input ciphertext.bin
-
-# Decryption (IV read from file)
-cryptocore --algorithm aes --mode cbc --decrypt --key 00112233445566778899aabbccddeeff --input ciphertext.bin
+# Note: If --iv is omitted, a random IV will be generated and included in the output file
+# For decryption, if IV is stored in the file (CryptoCore default), don't use --iv flag
+# If decrypting OpenSSL-encrypted files (IV not in file), provide --iv explicitly
 ```
 
-#### Weak Key Detection:
+#### Hash Operations:
 ```powershell
-# All zero bytes (warning)
-cryptocore --algorithm aes --mode ecb --encrypt --key 00000000000000000000000000000000 --input test.txt
-Warning: Potential weak key detected - Key consists of all zero bytes; Key consists of all identical bytes; Key appears to be a repeating 4-byte pattern
-  Key (hex): 00000000000000000000000000000000
+# SHA-256 of a file (stdout)
+cryptocore dgst --algorithm sha256 --input data.txt
+d7a8fbb307d7809469ca9abcb0082e4f8d5651e46d3cdb762d02d0bf37c9e592  data.txt
 
-# Sequential bytes (warning)
-cryptocore --algorithm aes --mode ecb --encrypt --key 000102030405060708090a0b0c0d0e0f --input test.txt
-Warning: Potential weak key detected - Key consists of sequential bytes (0, 1, 2, ...)
-  Key (hex): 000102030405060708090a0b0c0d0e0f
+# SHA3-256 of a file (stdout)
+cryptocore dgst --algorithm sha3-256 --input data.txt
+a7ffc6f8bf1ed76651c14756a061d662f580ff4de43b49fa82d80a4b80f8434a  data.txt
 
-# All identical bytes (warning)
-cryptocore --algorithm aes --mode ecb --encrypt --key aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa --input test.txt
-Warning: Potential weak key detected - Key consists of all identical bytes; Key appears to be a repeating 4-byte pattern
-  Key (hex): aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+# SHA-256 to file
+cryptocore dgst --algorithm sha256 --input data.txt --output hash.txt
+Hash written to: hash.txt
+
+# Verify file content
+cat hash.txt
+d7a8fbb307d7809469ca9abcb0082e4f8d5651e46d3cdb762d02d0bf37c9e592  data.txt
+
+# Hash from stdin
+echo -n "Hello World" | cryptocore dgst --algorithm sha256 --input -
+a591a6d40bf420404a011733cfb7b190d62c65bf0bcda32b57b277d9ad9f146e  -
 ```
-
-#### NIST Statistical Test Suite Verification:
-```powershell
-# Generate test data (10 MB recommended)
-cryptocore-nist nist_test_data.bin --size 10
-
-# Alternative method
-python -m cryptocore.utils.nist_tool nist_test_data.bin --size 10
-```
-
-**Running NIST STS:**
-1. Download NIST Statistical Test Suite from [NIST website](https://csrc.nist.gov/projects/random-bit-generation/documentation-and-software)
-2. Extract and compile: `make` (requires C compiler)
-3. Run: `./assess 83886080` (for 10 MB file = 83,886,080 bits)
-4. Follow interactive prompts to select the test file
-
-**Expected Results:**
-- Most tests should pass (p-value ≥ 0.01)
-- 1-2 failures are statistically expected for truly random data
-- Widespread failures indicate flawed random number generation
-
-### Advanced Options
-
-#### Custom Output File:
-```powershell
-cryptocore --algorithm aes --mode cbc --encrypt --key 00112233445566778899aabbccddeeff --input data.bin --output encrypted.data
-```
-
-#### Force Overwrite:
-```powershell
-cryptocore --algorithm aes --mode cbc --encrypt --key 00112233445566778899aabbccddeeff --input file.txt --output encrypted.bin --force
-```
-
-### File Naming Convention
-
-- **Encryption:** `filename.ext` → `filename.ext.enc`
-- **Decryption:** `filename.ext.enc` → `filename.dec.ext`
-
-### Supported Modes
-
-| Mode | IV Required | Padding | Description |
-|------|-------------|---------|-------------|
-| **ECB** | No | PKCS#7 | Electronic Codebook - basic block mode |
-| **CBC** | Yes | PKCS#7 | Cipher Block Chaining - chained blocks |
-| **CFB** | Yes | No | Cipher Feedback - stream mode |
-| **OFB** | Yes | No | Output Feedback - stream mode |
-| **CTR** | Yes | No | Counter - stream mode |
-
-## OpenSSL Compatibility
-
-CryptoCore is fully compatible with OpenSSL for interoperability testing.
-
-### Example: CBC Mode Compatibility
-
-```powershell
-# 1. Encrypt with OpenSSL, decrypt with CryptoCore
-openssl enc -aes-128-cbc -K 00112233445566778899aabbccddeeff -iv 000102030405060708090a0b0c0d0e0f -in plain.txt -out openssl_encrypted.bin
-cryptocore --algorithm aes --mode cbc --decrypt --key 00112233445566778899aabbccddeeff --iv 000102030405060708090a0b0c0d0e0f --input openssl_encrypted.bin --output decrypted.txt
-
-# 2. Encrypt with CryptoCore, decrypt with OpenSSL
-cryptocore --algorithm aes --mode cbc --encrypt --key 00112233445566778899aabbccddeeff --input plain.txt --output cryptocore_encrypted.bin
-
-# Extract IV from first 16 bytes (for OpenSSL decryption)
-$iv_bytes = Get-Content cryptocore_encrypted.bin -AsByteStream -TotalCount 16
-$iv_hex = -join ($iv_bytes | ForEach-Object {$_.ToString("X2")})
-$iv_lower = $iv_hex.ToLower()
-
-# Create file without IV for OpenSSL
-Get-Content cryptocore_encrypted.bin -AsByteStream | Select-Object -Skip 16 | Set-Content ciphertext_only.bin -AsByteStream
-
-# Decrypt with OpenSSL
-openssl enc -aes-128-cbc -d -K 00112233445566778899aabbccddeeff -iv $iv_lower -in ciphertext_only.bin -out openssl_decrypted.txt
-```
-
-### IV Handling Notes
-
-- **Encryption:** IV is automatically generated using cryptographically secure random numbers and prepended to the output file
-- **Decryption with `--iv`:** Use when the input file does NOT contain IV (e.g., OpenSSL output)
-- **Decryption without `--iv`:** IV is read from the first 16 bytes of the input file (CryptoCore format)
 
 ## Testing
 
@@ -181,38 +150,24 @@ openssl enc -aes-128-cbc -d -K 00112233445566778899aabbccddeeff -iv $iv_lower -i
 python -m unittest discover tests -v
 ```
 
-### CSPRNG-Specific Tests
+### Specific Test Categories
 ```powershell
-# Run CSPRNG tests
-python -m unittest tests.test_csprng -v
+# Run hash tests
+python -m unittest tests.test_dgst -v
 
-# Run CLI tests with automatic key generation
-python -m unittest tests.test_cli -v
-```
+# Run SHA-256 implementation tests
+python -m unittest tests.test_hash_sha256 -v
 
-### OpenSSL Compatibility Tests
-To run full OpenSSL compatibility tests, ensure OpenSSL is installed and in your PATH:
-
-```powershell
-# Check OpenSSL availability
-openssl version
-
-# Run compatibility tests
+# Test OpenSSL compatibility (requires OpenSSL installed)
 python -m unittest tests.test_openssl_compatibility -v
 ```
 
-### Quick Verification Example
-```powershell
-# Create test file
-echo "Hello CryptoCore!" > test.txt
-
-# Test all modes with auto-generated keys
-cryptocore --algorithm aes --mode ecb --encrypt --input test.txt --force
-cryptocore --algorithm aes --mode cbc --encrypt --input test.txt --force
-
-# Verify file creation
-Get-ChildItem test.*
-```
+### OpenSSL Compatibility Testing
+CryptoCore has been verified for interoperability with OpenSSL 3.x:
+- **CBC mode**: Full bidirectional compatibility (CryptoCore ↔ OpenSSL)
+- **ECB mode**: Direct file compatibility
+- **Hash algorithms**: SHA-256 and SHA3-256 produce identical results
+- **IV handling**: CryptoCore stores IV in file, OpenSSL requires separate -iv parameter
 
 ## Project Structure
 
@@ -220,20 +175,25 @@ Get-ChildItem test.*
 CryptoCore/
 ├── src/cryptocore/
 │   ├── modes/
-│   │   ├── ecb.py          # ECB mode implementation
-│   │   ├── cbc.py          # CBC mode implementation
-│   │   ├── cfb.py          # CFB mode implementation
-│   │   ├── ofb.py          # OFB mode implementation
-│   │   └── ctr.py          # CTR mode implementation
+│   │   ├── ecb.py           # ECB mode implementation
+│   │   ├── cbc.py           # CBC mode implementation
+│   │   ├── cfb.py           # CFB mode implementation
+│   │   ├── ofb.py           # OFB mode implementation
+│   │   └── ctr.py           # CTR mode implementation
+│   ├── hash/
+│   │   ├── sha256.py        # SHA-256 implementation
+│   │   └── sha3_256.py      # SHA3-256 implementation
 │   ├── utils/
-│   │   ├── padding.py      # PKCS#7 padding
-│   │   ├── csprng.py       # Cryptographically secure random number generator
-│   │   └── nist_tool.py    # NIST test file generator
-│   ├── cli.py              # Command-line interface
-│   └── file_io.py          # File handling with IV support
-├── tests/                  # Comprehensive test suite
+│   │   ├── padding.py       # PKCS#7 padding
+│   │   ├── csprng.py        # Cryptographically secure pseudorandom number generator
+│   │   └── nist_tool.py     # NIST test file generator
+│   ├── cli.py               # Command-line interface
+│   └── file_io.py           # File handling with IV support
+├── tests/                   # Comprehensive test suite
 │   ├── test_cli.py
-│   ├── test_csprng.py      # CSPRNG tests
+│   ├── test_csprng.py       # CSPRNG tests
+│   ├── test_dgst.py         # Hash command tests
+│   ├── test_hash_sha256.py  # SHA-256 implementation tests
 │   ├── test_ecb.py
 │   ├── test_cbc.py
 │   ├── test_cfb.py
@@ -241,8 +201,10 @@ CryptoCore/
 │   ├── test_ctr.py
 │   ├── test_padding.py
 │   ├── test_file_io.py
+│   ├── test_dgst_edge_cases.py
+│   ├── test_integration.py  # End-to-end integration tests
 │   └── test_openssl_compatibility.py
-├── setup.py               # Package configuration
+├── setup.py                 # Package configuration
 └── README.md
 ```
 
@@ -251,6 +213,8 @@ CryptoCore/
 ### Implemented Standards
 
 - **AES-128** (using pycryptodome for core operations)
+- **SHA-256** (custom implementation)
+- **SHA3-256** (using Python's hashlib)
 - **ECB, CBC, CFB, OFB, CTR** modes with manual implementation
 - **PKCS#7 padding** with full validation
 - **CSPRNG** using `os.urandom()` for cryptographic security
@@ -259,18 +223,24 @@ CryptoCore/
 ### Security Notes
 
 - Core AES operations delegated to pycryptodome (industry standard)
+- SHA-256 implementation follows NIST FIPS 180-4 specification
+- SHA3-256 uses Python's built-in hashlib
 - IV generation uses cryptographically secure random numbers
 - Automatic key generation uses CSPRNG (`os.urandom()`)
 - Weak key detection warns about obviously insecure keys
-- Educational focus - not for production cryptographic use
+- **Educational focus** - not for production cryptographic use
 - All file operations in binary mode
 
 ## Troubleshooting
 
 ### Common Issues
 
-**OpenSSL not found in PATH:**
+**OpenSSL compatibility test skips:**
 ```powershell
+# Ensure OpenSSL is installed and in PATH
+# Windows: Install from https://slproweb.com/products/Win32OpenSSL.html
+# Add OpenSSL to PATH or specify full path in test configuration
+
 # Use full path to OpenSSL
 & "C:\Program Files\OpenSSL-Win64\bin\openssl.exe" version
 
@@ -287,6 +257,8 @@ openssl version
 - ECB mode does not support `--iv` argument
 - For decryption without `--iv`, ensure file contains IV in first 16 bytes
 - IV must be 16 bytes (32 hex characters)
+- CryptoCore stores IV at beginning of encrypted file; OpenSSL requires separate -iv parameter
+- When decrypting OpenSSL-encrypted files, you must prepend IV to ciphertext or use `--iv` flag
 
 **Permission errors:**
 - Run PowerShell as Administrator if writing to protected directories
@@ -295,3 +267,11 @@ openssl version
 **Auto-generated key not displayed:**
 - Ensure you're not providing `--key` argument for encryption
 - Check console output for `[INFO] Generated random key:` message
+
+**Unicode filename limitations:**
+- Some systems may have limitations with Unicode characters in filenames
+- Tests automatically skip when system doesn't support specific Unicode characters
+
+**Test failures on protected directories:**
+- Writing to system-protected directories (e.g., /root, C:\Windows) requires administrator privileges
+- Related tests are skipped in normal execution
