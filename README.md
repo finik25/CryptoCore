@@ -1,3 +1,4 @@
+
 # CryptoCore
 
 Minimalist cryptographic provider in Python. Educational project focused on understanding cryptographic algorithms and protocols.
@@ -5,19 +6,22 @@ Minimalist cryptographic provider in Python. Educational project focused on unde
 ## Features
 
 - **AES-128 encryption/decryption** in multiple modes
+- **Authenticated Encryption** with GCM mode (NIST SP 800-38D)
+- **Associated Authenticated Data (AAD)** support for GCM
+- **Catastrophic failure handling** - no plaintext output on authentication failure
 - **SHA-256 and SHA3-256 hashing** with optional file output
 - **HMAC-SHA256 authentication** for data integrity and authenticity
-- **Five supported AES modes**: ECB, CBC, CFB, OFB, CTR
+- **Six supported AES modes**: ECB, CBC, CFB, OFB, CTR, GCM
 - **Automatic key generation** for encryption operations
 - **Weak key detection** with warnings for insecure keys
 - **HMAC verification** with tamper detection
 - **NIST STS test file generator** for CSPRNG verification
 - **PKCS#7 padding** for modes that require it
-- **IV (Initialization Vector) handling** with secure generation and storage
+- **IV/Nonce handling** with secure generation and storage
 - **Binary file handling** - works with any file type
 - **OpenSSL compatibility** - verified against industry standard
 - **Command-line interface** with comprehensive validation
-- **Comprehensive test suite** - 161+ tests covering edge cases and interoperability
+- **Comprehensive test suite** - 184+ tests covering edge cases and interoperability
 
 ## Requirements
 
@@ -56,11 +60,17 @@ CryptoCore supports two command modes: subcommands (recommended) and legacy mode
 
 #### Encryption and Decryption:
 ```powershell
-# Encryption with auto-generated key
+# ECB mode encryption with auto-generated key
 cryptocore crypto --algorithm aes --mode ecb --encrypt --input plaintext.txt
 
-# Decryption with provided key
+# CBC mode decryption with provided key
 cryptocore crypto --algorithm aes --mode cbc --decrypt --key 00112233445566778899aabbccddeeff --input ciphertext.bin
+
+# GCM mode encryption with AAD
+cryptocore crypto --algorithm aes --mode gcm --encrypt --key 00112233445566778899aabbccddeeff --aad aabbccddeeff --input sensitive.txt
+
+# GCM mode decryption with AAD verification
+cryptocore crypto --algorithm aes --mode gcm --decrypt --key 00112233445566778899aabbccddeeff --aad aabbccddeeff --input sensitive.txt.gcm
 ```
 
 #### Hash Computation:
@@ -106,7 +116,45 @@ For backward compatibility, you can still use the old syntax:
 # Encryption (legacy mode)
 cryptocore --algorithm aes --mode ecb --encrypt --input plaintext.txt
 
-# Note: Legacy mode doesn't support hash or HMAC operations
+# Note: Legacy mode doesn't support hash, HMAC, or GCM operations
+```
+
+## Authenticated Encryption (GCM Mode)
+
+CryptoCore now supports **Galois/Counter Mode (GCM)** for authenticated encryption with associated data (AEAD).
+
+### GCM Features:
+- **Authenticated encryption** with AES-128 in GCM mode
+- **Associated Authenticated Data (AAD)** - arbitrary length metadata
+- **12-byte nonce** (recommended size, randomly generated)
+- **16-byte authentication tag** (128-bit)
+- **Catastrophic failure** - no plaintext output if authentication fails
+- **NIST SP 800-38D compliance** - follows standard specification
+
+### GCM File Format:
+Encrypted files follow format: `nonce(12 bytes) | ciphertext | tag(16 bytes)`
+
+### Security Warning:
+- **Nonce reuse is catastrophic** - must be unique for each encryption with same key
+- **Authentication failure** causes immediate abort without plaintext output
+- **AAD mismatch** or **ciphertext tampering** is detected and prevented
+- **Large AAD supported** - handles AAD up to gigabytes in size
+
+### GCM Usage Examples:
+```powershell
+# GCM Encryption with auto-generated key and random nonce
+cryptocore crypto --algorithm aes --mode gcm --encrypt --input secret.txt
+
+# GCM Encryption with AAD (metadata authentication)
+cryptocore crypto --algorithm aes --mode gcm --encrypt --key 00112233445566778899aabbccddeeff --aad aabbccddeeff --input data.txt
+
+# GCM Decryption with correct AAD
+cryptocore crypto --algorithm aes --mode gcm --decrypt --key 00112233445566778899aabbccddeeff --aad aabbccddeeff --input data.txt.gcm
+
+# GCM Decryption failure example (wrong AAD)
+cryptocore crypto --algorithm aes --mode gcm --decrypt --key 00112233445566778899aabbccddeeff --aad wrongaad123 --input data.txt.gcm
+> [ERROR] Authentication failed: AAD mismatch or ciphertext tampered
+> Exit code: 1
 ```
 
 ## Examples
@@ -124,6 +172,26 @@ Success: encrypt completed
 
 # Decryption (key is always required)
 cryptocore crypto --algorithm aes --mode ecb --decrypt --key 7d0776fd22695814da56760ed31aa7e2 --input plaintext.txt.enc
+```
+
+#### GCM Encryption with AAD:
+```powershell
+# GCM encryption with Associated Authenticated Data
+cryptocore crypto --algorithm aes --mode gcm --encrypt --key 00112233445566778899aabbccddeeff --aad "metadata123" --input secret.txt
+Success: GCM encryption completed
+  Output file: secret.txt.gcm
+  Nonce (hex): 56f3f747d5cf8778954b5177
+  AAD (hex): 6d65746164617461313233
+
+# GCM decryption (verifies AAD)
+cryptocore crypto --algorithm aes --mode gcm --decrypt --key 00112233445566778899aabbccddeeff --aad "metadata123" --input secret.txt.gcm
+Success: GCM decryption completed
+  Output file: secret.dec.txt
+
+# GCM decryption with wrong AAD (catastrophic failure)
+cryptocore crypto --algorithm aes --mode gcm --decrypt --key 00112233445566778899aabbccddeeff --aad "wrongmetadata" --input secret.txt.gcm
+[ERROR] Authentication failed: AAD mismatch or ciphertext tampered
+> Exit code: 1
 ```
 
 #### Encryption with Explicit IV:
@@ -183,25 +251,6 @@ cryptocore dgst --algorithm sha256 --hmac --key ffeeffeeddccddaabbcc112233445566
 [ERROR] HMAC verification failed for document.pdf
 ```
 
-## HMAC Features (Milestone 5)
-
-CryptoCore now supports HMAC (Hash-based Message Authentication Code) for verifying data authenticity and integrity.
-
-### Key Features:
-- **HMAC-SHA256** implementation following RFC 2104 specification
-- **Variable-length keys** - any key length supported (automatically processed per RFC)
-- **Tamper detection** - changing one bit in file or key causes verification failure
-- **Streaming support** - handles large files efficiently with chunked processing
-- **Cross-platform** - works on Windows, Linux, macOS
-- **OpenSSL compatible** - produces identical HMAC values as OpenSSL
-- **RFC 4231 compliance** - passes all standard test vectors
-
-### Security Implementation:
-- **Key processing**: Keys longer than 64 bytes are hashed, shorter keys are padded
-- **Constant-time comparison** for verification (resistant to timing attacks)
-- **Uses secure SHA-256** implementation from Milestone 4
-- **Educational focus** - demonstrates HMAC construction and security principles
-
 ## Testing
 
 ### Run Test Suite
@@ -211,6 +260,11 @@ python -m unittest discover tests -v
 
 ### Specific Test Categories
 ```powershell
+# Run GCM tests
+python -m unittest tests.test_gcm -v
+python -m unittest tests.test_gcm_cli -v
+python -m unittest tests.test_gcm_catastrophic_failure -v
+
 # Run hash tests
 python -m unittest tests.test_dgst -v
 
@@ -221,6 +275,9 @@ python -m unittest tests.test_hmac_cli -v
 # Run SHA-256 implementation tests
 python -m unittest tests.test_hash_sha256 -v
 
+# Run Galois Field tests
+python -m unittest tests.test_galois_field -v
+
 # Test OpenSSL compatibility (requires OpenSSL installed)
 python -m unittest tests.test_openssl_compatibility -v
 
@@ -229,10 +286,28 @@ python -m unittest tests.test_hmac_integration -v
 python -m unittest tests.test_integration -v
 ```
 
+### GCM Security Testing
+```powershell
+# Test catastrophic failure with wrong AAD
+cryptocore crypto --algorithm aes --mode gcm --encrypt --key 00112233445566778899aabbccddeeff --aad correct_aad --input test.txt --output encrypted.gcm
+cryptocore crypto --algorithm aes --mode gcm --decrypt --key 00112233445566778899aabbccddeeff --aad wrong_aad --input encrypted.gcm --output should_fail.txt
+> [ERROR] Authentication failed: AAD mismatch or ciphertext tampered
+
+# Verify no output file was created
+Test-Path should_fail.txt  # Should return False
+
+# Test with large AAD (10KB)
+python -c "import os; print(os.urandom(10000).hex())" > large_aad.hex
+$LARGE_AAD = Get-Content large_aad.hex -Raw
+cryptocore crypto --algorithm aes --mode gcm --encrypt --key 00112233445566778899aabbccddeeff --aad $LARGE_AAD --input test.txt --output test.gcm
+cryptocore crypto --algorithm aes --mode gcm --decrypt --key 00112233445566778899aabbccddeeff --aad $LARGE_AAD --input test.gcm --output decrypted.txt
+```
+
 ### OpenSSL Compatibility Testing
 CryptoCore has been verified for interoperability with OpenSSL 3.x:
 - **CBC mode**: Full bidirectional compatibility (CryptoCore ↔ OpenSSL)
 - **ECB mode**: Direct file compatibility
+- **GCM mode**: Compatible with OpenSSL 1.1.0+ (requires manual tag handling)
 - **Hash algorithms**: SHA-256 and SHA3-256 produce identical results
 - **HMAC-SHA256**: Produces identical HMAC values as OpenSSL
 - **IV handling**: CryptoCore stores IV in file, OpenSSL requires separate -iv parameter
@@ -242,36 +317,47 @@ CryptoCore has been verified for interoperability with OpenSSL 3.x:
 ```
 CryptoCore/
 ├── src/cryptocore/
+│   ├── aead/
+│   │   ├── __init__.py
+│   │   ├── encrypt_then_mac.py
 │   ├── modes/
 │   │   ├── __init__.py
 │   │   ├── ecb.py           # ECB mode implementation
 │   │   ├── cbc.py           # CBC mode implementation
 │   │   ├── cfb.py           # CFB mode implementation
 │   │   ├── ofb.py           # OFB mode implementation
-│   │   └── ctr.py           # CTR mode implementation
+│   │   ├── ctr.py           # CTR mode implementation
+│   │   └── gcm.py           # GCM mode implementation (AEAD)
 │   ├── hash/
 │   │   ├── __init__.py
 │   │   ├── sha256.py        # SHA-256 implementation
 │   │   └── sha3_256.py      # SHA3-256 implementation
-│   ├── mac/                 # Message Authentication Codes (M5)
+│   ├── mac/                 # Message Authentication Codes
 │   │   ├── __init__.py
 │   │   └── hmac.py          # HMAC-SHA256 implementation (RFC 2104)
 │   ├── utils/
 │   │   ├── __init__.py
 │   │   ├── padding.py       # PKCS#7 padding
 │   │   ├── csprng.py        # Cryptographically secure pseudorandom number generator
-│   │   └── nist_tool.py     # NIST test file generator
+│   │   ├── nist_tool.py     # NIST test file generator
+│   │   └── galois_field.py  # Galois Field operations for GCM
 │   ├── __init__.py
 │   ├── cli.py               # Command-line interface
-│   └── file_io.py           # File handling with IV support
-├── tests/                   # Comprehensive test suite (161+ tests)
+│   ├── file_io.py           # File handling with IV/nonce support
+│   └── hash_utils.py
+├── tests/                   # Comprehensive test suite (184+ tests)
 │   ├── test_cli.py
-│   ├── test_csprng.py       # CSPRNG tests
+│   ├── test_csprng.py        
 │   ├── test_dgst.py         # Hash command tests
-│   ├── test_hash_sha256.py  # SHA-256 implementation tests
-│   ├── test_hmac.py         # HMAC implementation tests
-│   ├── test_hmac_cli.py     # HMAC CLI tests
-│   ├── test_hmac_integration.py # HMAC integration tests
+│   ├── test_hash_sha256.py   
+│   ├── test_hmac.py          
+│   ├── test_hmac_cli.py     
+│   ├── test_hmac_integration.py 
+│   ├── test_gcm.py          # GCM implementation tests
+│   ├── test_gcm_cli.py      # GCM CLI tests
+│   ├── test_gcm_catastrophic_failure.py
+│   ├── test_gcm_aad_comprehensive.py
+│   ├── test_galois_field.py
 │   ├── test_ecb.py
 │   ├── test_cbc.py
 │   ├── test_cfb.py
@@ -279,10 +365,12 @@ CryptoCore/
 │   ├── test_ctr.py
 │   ├── test_padding.py
 │   ├── test_file_io.py
+│   ├── test_encrypt_then_mac.py
 │   ├── test_dgst_edge_cases.py
 │   ├── test_integration.py  # End-to-end integration tests
 │   └── test_openssl_compatibility.py
 ├── setup.py                 # Package configuration
+├── requirements.txt
 └── README.md
 ```
 
@@ -294,10 +382,22 @@ CryptoCore/
 - **SHA-256** (custom implementation following NIST FIPS 180-4)
 - **SHA3-256** (using Python's hashlib)
 - **HMAC-SHA256** (RFC 2104 implementation)
+- **GCM mode** (NIST SP 800-38D with Galois Field multiplication)
 - **ECB, CBC, CFB, OFB, CTR** modes with manual implementation
 - **PKCS#7 padding** with full validation
 - **CSPRNG** using `os.urandom()` for cryptographic security
 - **Binary data handling** (no encoding assumptions)
+
+### GCM Implementation Details
+
+The GCM implementation follows NIST SP 800-38D specification:
+
+- **Nonce**: 12-byte recommended size (96 bits)
+- **Tag**: 16-byte authentication tag (128 bits)
+- **AAD**: Arbitrary length Associated Authenticated Data
+- **Galois Field**: GF(2^128) with irreducible polynomial `x^128 + x^7 + x^2 + x + 1`
+- **GHASH**: Custom implementation using optimized Galois Field multiplication
+- **Security**: Catastrophic failure on authentication error
 
 ### Security Notes
 
@@ -305,11 +405,13 @@ CryptoCore/
 - SHA-256 implementation follows NIST FIPS 180-4 specification
 - SHA3-256 uses Python's built-in hashlib
 - HMAC implementation follows RFC 2104 with proper key processing
-- IV generation uses cryptographically secure random numbers
+- GCM implementation follows NIST SP 800-38D with custom Galois Field arithmetic
+- IV/Nonce generation uses cryptographically secure random numbers
 - Automatic key generation uses CSPRNG (`os.urandom()`)
 - Weak key detection warns about obviously insecure keys
 - HMAC verification uses constant-time comparison
-- **Educational focus** - not for production cryptographic use
+- GCM provides catastrophic failure - no plaintext output on auth error
+- Educational focus - not for production cryptographic use
 - All file operations in binary mode
 
 ### HMAC Implementation Details
@@ -354,6 +456,12 @@ openssl version
 - IV must be 16 bytes (32 hex characters)
 - CryptoCore stores IV at beginning of encrypted file; OpenSSL requires separate -iv parameter
 - When decrypting OpenSSL-encrypted files, you must prepend IV to ciphertext or use `--iv` flag
+
+**GCM-specific errors:**
+- GCM uses 12-byte nonce (24 hex characters), not 16-byte IV
+- Authentication failure is catastrophic - no output file created
+- AAD mismatch causes immediate abort
+- Large AAD (>100KB) should be provided via file, not command line
 
 **HMAC-related errors:**
 - `--hmac` requires `--key` argument

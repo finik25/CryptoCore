@@ -78,3 +78,67 @@ def derive_output_filename(input_path: str, operation: str, algorithm: str, mode
             return f"{base_name}.dec"
     else:
         return f"{base_name}.{operation}"
+
+
+def derive_output_filename(input_path: str, operation: str, algorithm: str, mode: str) -> str:
+    base_name = os.path.basename(input_path)
+
+    if operation == 'encrypt':
+        if mode == 'gcm':
+            # For GCM: file.txt -> file.txt.gcm
+            return f"{base_name}.gcm"
+        else:
+            # For other modes: file.txt -> file.txt.enc
+            return f"{base_name}.enc"
+    elif operation == 'decrypt':
+        if mode == 'gcm':
+            # For GCM: file.txt.gcm -> file.dec.txt
+            name, ext = os.path.splitext(base_name)
+            if ext == '.gcm':
+                original_name, original_ext = os.path.splitext(name)
+                if original_ext:
+                    return f"{original_name}.dec{original_ext}"
+                else:
+                    return f"{name}.dec"
+            else:
+                return f"{base_name}.dec"
+        else:
+            # For other modes: file.txt.enc -> file.dec.txt
+            name, ext = os.path.splitext(base_name)
+            if ext == '.enc':
+                original_name, original_ext = os.path.splitext(name)
+                if original_ext:
+                    return f"{original_name}.dec{original_ext}"
+                else:
+                    return f"{name}.dec"
+            else:
+                return f"{base_name}.dec"
+    else:
+        return f"{base_name}.{operation}"
+
+
+def read_gcm_file(file_path: str) -> tuple[bytes, bytes, bytes]:
+    data = read_file(file_path)
+
+    if len(data) < 28:  # nonce(12) + tag(16)
+        raise ValueError(f"GCM file too short: {len(data)} bytes, need at least 28")
+
+    nonce = data[:12]
+    tag = data[-16:]
+    ciphertext = data[12:-16]
+
+    return nonce, ciphertext, tag
+
+
+def write_gcm_file(file_path: str, nonce: bytes, ciphertext: bytes, tag: bytes,
+                   overwrite: bool = False) -> None:
+    # Write GCM file with proper format: nonce(12 bytes) | ciphertext | tag(16 bytes)
+
+    if len(nonce) != 12:
+        raise ValueError(f"Nonce must be 12 bytes, got {len(nonce)}")
+
+    if len(tag) != 16:
+        raise ValueError(f"Tag must be 16 bytes, got {len(tag)}")
+
+    combined_data = nonce + ciphertext + tag
+    write_file(file_path, combined_data, overwrite)

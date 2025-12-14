@@ -31,6 +31,7 @@ except ImportError:
         print(f"Error importing cryptocore modules: {e}", file=sys.stderr)
         sys.exit(1)
 
+# Try to import hash modules
 try:
     if _import_from_package:
         from cryptocore.hash.sha256 import SHA256
@@ -58,6 +59,18 @@ except ImportError:
     compute_hmac_hex = None
     HMAC = None
 
+# Try to import GCM module
+try:
+    if _import_from_package:
+        from cryptocore.modes.gcm import encrypt_gcm, decrypt_gcm
+    else:
+        from src.cryptocore.modes.gcm import encrypt_gcm, decrypt_gcm
+    _gcm_available = True
+except ImportError:
+    _gcm_available = False
+    encrypt_gcm = None
+    decrypt_gcm = None
+
 
 def parse_arguments(args=None):
     if args is None:
@@ -75,10 +88,13 @@ def _parse_with_subcommands(args):
     parser = argparse.ArgumentParser(
         description="CryptoCore - Minimalist Cryptographic Provider",
         formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog="""
+        epilog="""\
 Examples:
   # Encryption with subcommand (recommended)
   cryptocore crypto --algorithm aes --mode cbc --encrypt --input plaintext.txt
+
+  # GCM Encryption with AAD
+  cryptocore crypto --algorithm aes --mode gcm --encrypt --key 00112233445566778899aabbccddeeff --aad aabbccddeeff --input plaintext.txt
 
   # Hash computation (stdout)
   cryptocore dgst --algorithm sha256 --input document.pdf
@@ -118,8 +134,8 @@ def _parse_legacy(args):
     parser = argparse.ArgumentParser(
         description="CryptoCore - Minimalist Cryptographic Provider (legacy mode)",
         formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog="""
-Note: This is legacy mode. For new features like hashing and HMAC, use subcommands.
+        epilog="""\
+Note: This is legacy mode. For new features like hashing, HMAC, and GCM, use subcommands.
 """
     )
 
@@ -131,14 +147,23 @@ Note: This is legacy mode. For new features like hashing and HMAC, use subcomman
 
 def _add_crypto_arguments(parser):
     parser.add_argument('--algorithm', required=True, choices=['aes'], help='Cryptographic algorithm')
-    parser.add_argument('--mode', required=True, choices=['ecb', 'cbc', 'cfb', 'ofb', 'ctr'], help='Mode of operation')
+
+    # Build mode choices dynamically based on availability
+    mode_choices = ['ecb', 'cbc', 'cfb', 'ofb', 'ctr']
+    if _gcm_available:
+        mode_choices.append('gcm')
+
+    parser.add_argument('--mode', required=True, choices=mode_choices, help='Mode of operation')
 
     operation_group = parser.add_mutually_exclusive_group(required=True)
     operation_group.add_argument('--encrypt', action='store_true')
     operation_group.add_argument('--decrypt', action='store_true')
 
     parser.add_argument('--key', required=False, help='Encryption key as hexadecimal string')
-    parser.add_argument('--iv', required=False, help='Initialization Vector as hexadecimal string')
+    parser.add_argument('--iv', required=False,
+                        help='Initialization Vector as hexadecimal string (16 bytes for modes except GCM, 12 bytes for GCM)')
+    parser.add_argument('--aad', required=False,
+                        help='Associated Authenticated Data as hexadecimal string (for GCM mode only)')
     parser.add_argument('--input', required=True, help='Input file path')
     parser.add_argument('--output', required=False, help='Output file path')
     parser.add_argument('--force', action='store_true', help='Overwrite output file if it exists')
@@ -165,7 +190,7 @@ def validate_key_hex(key_hex: str, hmac_mode: bool = False) -> bytes:
         key_bytes = bytes.fromhex(clean_key)
 
         if not hmac_mode:
-            # For AES encryption, key must be 16 bytes
+            # For AES encryption, key must be 16 bytes for AES-128
             if len(key_bytes) != 16:
                 raise ValueError(f"Key must be 16 bytes, got {len(key_bytes)} bytes")
 
@@ -182,19 +207,30 @@ def validate_key(key_hex: str) -> bytes:
     return validate_key_hex(key_hex, hmac_mode=False)
 
 
-def validate_iv(iv_hex: str) -> bytes:
+def validate_iv(iv_hex: str, mode: str = 'cbc') -> bytes:
     try:
         clean_iv = iv_hex.lower().replace('0x', '').replace('\\x', '').replace(' ', '')
-        iv_bytes = bytes.fromhex(clean_iv)
 
-        if len(iv_bytes) != 16:
-            raise ValueError(f"IV must be 16 bytes, got {len(iv_bytes)} bytes")
+        if mode == 'gcm':
+            # GCM: 12 bytes nonce (24 hex chars)
+            if len(clean_iv) != 24:
+                raise ValueError(
+                    f"GCM nonce must be 12 bytes (24 hex chars), got {len(clean_iv) // 2} bytes"
+                )
+            iv_bytes = bytes.fromhex(clean_iv)
+        else:
+            # Other modes: 16 bytes IV (32 hex chars)
+            if len(clean_iv) != 32:
+                raise ValueError(
+                    f"IV must be 16 bytes (32 hex chars) for {mode} mode, got {len(clean_iv) // 2} bytes"
+                )
+            iv_bytes = bytes.fromhex(clean_iv)
 
         return iv_bytes
 
     except ValueError as e:
         if "non-hexadecimal number" in str(e):
-            raise ValueError(f"Invalid IV format: '{iv_hex}'. Must be 32 hex chars")
+            raise ValueError(f"Invalid format: '{iv_hex}'. Must be valid hex")
         else:
             raise e
 
@@ -469,6 +505,15 @@ def perform_dgst_operation(args):
 def perform_crypto_operation(args):
     operation = 'encrypt' if args.encrypt else 'decrypt'
 
+    # Handle GCM mode specially
+    if args.mode == 'gcm':
+        if not _gcm_available:
+            print("Error: GCM mode not available", file=sys.stderr)
+            sys.exit(1)
+
+        return _perform_gcm_operation(args, operation)
+
+    # Original logic for other modes (ECB, CBC, CFB, OFB, CTR)
     generated_key = None
     if operation == 'encrypt':
         if args.key is None:
@@ -518,7 +563,7 @@ def perform_crypto_operation(args):
     else:
         if args.iv:
             try:
-                iv = validate_iv(args.iv)
+                iv = validate_iv(args.iv, args.mode)
             except ValueError as e:
                 print(f"Error: {e}", file=sys.stderr)
                 sys.exit(1)
@@ -621,6 +666,154 @@ def perform_crypto_operation(args):
     except (FileExistsError, PermissionError, IOError) as e:
         print(f"Error writing output file: {e}", file=sys.stderr)
         sys.exit(1)
+
+
+def _perform_gcm_operation(args, operation):
+    # Parse and validate key
+    if operation == 'encrypt':
+        if args.key is None:
+            key = generate_random_key()
+            print(f"[INFO] Generated random key: {key.hex()}", file=sys.stdout)
+        else:
+            try:
+                key = validate_key(args.key)
+            except ValueError as e:
+                print(f"Error: {e}", file=sys.stderr)
+                sys.exit(1)
+            check_weak_key(key)
+    else:  # decryption
+        if args.key is None:
+            print(f"Error: --key is required for GCM decryption", file=sys.stderr)
+            sys.exit(1)
+
+        try:
+            key = validate_key(args.key)
+        except ValueError as e:
+            print(f"Error: {e}", file=sys.stderr)
+            sys.exit(1)
+        check_weak_key(key)
+
+    # Parse AAD if provided
+    aad = b""
+    if args.aad:
+        try:
+            clean_aad = args.aad.lower().replace('0x', '').replace('\\x', '').replace(' ', '')
+            aad = bytes.fromhex(clean_aad)
+        except ValueError as e:
+            print(f"Error: Invalid AAD format: {e}", file=sys.stderr)
+            sys.exit(1)
+    elif operation == 'encrypt':
+        # AAD is optional for encryption
+        pass
+    # Note: For decryption, empty AAD is valid if encryption also used empty AAD
+
+    # Parse nonce if provided (via --iv for backward compatibility)
+    nonce = None
+    if args.iv:
+        try:
+            nonce = validate_iv(args.iv, 'gcm')
+        except ValueError as e:
+            print(f"Error: {e}", file=sys.stderr)
+            sys.exit(1)
+
+    # Read input data
+    try:
+        input_data = read_file(args.input)
+    except (FileNotFoundError, PermissionError, IOError) as e:
+        print(f"Error reading input file: {e}", file=sys.stderr)
+        sys.exit(1)
+
+    if operation == 'encrypt':
+        try:
+            # Perform GCM encryption
+            nonce_out, ciphertext, tag = encrypt_gcm(
+                plaintext=input_data,
+                key=key,
+                nonce=nonce,  # если None, будет сгенерирован автоматически
+                aad=aad
+            )
+
+            # Output format: nonce(12) + ciphertext + tag(16)
+            output_data = nonce_out + ciphertext + tag
+
+            # Determine output filename
+            if args.output:
+                output_path = args.output
+            else:
+                # Use custom derivation for GCM
+                base_name = os.path.basename(args.input)
+                output_path = f"{base_name}.gcm"
+
+            # Write output file
+            write_file(output_path, output_data, overwrite=args.force)
+
+            print(f"Success: GCM encryption completed", file=sys.stdout)
+            print(f"  Output file: {output_path}", file=sys.stdout)
+            print(f"  Nonce (hex): {nonce_out.hex()}", file=sys.stdout)
+            if not args.key:
+                print(f"  Key (hex): {key.hex()} (auto-generated)", file=sys.stdout)
+            if args.aad:
+                print(f"  AAD (hex): {args.aad}", file=sys.stdout)
+
+        except Exception as e:
+            print(f"GCM encryption error: {e}", file=sys.stderr)
+            sys.exit(1)
+
+    else:  # decryption
+        try:
+            # Check minimum size: nonce(12) + tag(16) = 28 bytes
+            if len(input_data) < 28:
+                raise ValueError(
+                    f"Input too short for GCM format (need at least 28 bytes, got {len(input_data)})"
+                )
+
+            # Extract components: nonce(12) | ciphertext | tag(16)
+            nonce_in = input_data[:12]
+            tag_in = input_data[-16:]
+            ciphertext_in = input_data[12:-16]
+
+            # Perform GCM decryption with tag verification
+            plaintext = decrypt_gcm(
+                ciphertext=ciphertext_in,
+                tag=tag_in,
+                nonce=nonce_in,
+                key=key,
+                aad=aad
+            )
+
+            # Determine output filename
+            if args.output:
+                output_path = args.output
+            else:
+                # Derive filename: file.txt.gcm -> file.dec.txt
+                base_name = os.path.basename(args.input)
+                name, ext = os.path.splitext(base_name)
+                if ext == '.gcm':
+                    original_name, original_ext = os.path.splitext(name)
+                    if original_ext:
+                        output_path = f"{original_name}.dec{original_ext}"
+                    else:
+                        output_path = f"{name}.dec"
+                else:
+                    output_path = f"{base_name}.dec"
+
+            # Write output file
+            write_file(output_path, plaintext, overwrite=args.force)
+
+            print(f"Success: GCM decryption completed", file=sys.stdout)
+            print(f"  Output file: {output_path}", file=sys.stdout)
+            print(f"  Nonce (hex): {nonce_in.hex()}", file=sys.stdout)
+            if args.aad:
+                print(f"  AAD (hex): {args.aad}", file=sys.stdout)
+
+        except Exception as e:
+            # Catastrophic failure: different error messages for authentication failure
+            if "AuthenticationError" in str(type(e).__name__) or "verification" in str(e).lower():
+                print(f"[ERROR] Authentication failed: {e}", file=sys.stderr)
+                print(f"  No plaintext was output due to authentication failure.", file=sys.stderr)
+            else:
+                print(f"GCM decryption error: {e}", file=sys.stderr)
+            sys.exit(1)
 
 
 def main():
