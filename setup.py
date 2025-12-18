@@ -14,7 +14,7 @@ setup(
             "cryptocore-nist=cryptocore.utils.nist_tool:main",
         ],
     },
-    python_requires=">=3.13",
+    python_requires=">=3.8",
     author="finik25",
     description="A minimalist cryptographic provider",
     keywords="crypto encryption decryption aes",
