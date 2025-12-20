@@ -3,10 +3,27 @@ import sys
 import os
 from typing import Optional, List
 
+
+def setup_imports():
+    import sys
+    import os
+
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+
+    src_dir = os.path.dirname(current_dir)  # ../src/cryptocore -> ../src
+    project_root = os.path.dirname(src_dir)  # ../src -> root project
+
+    if src_dir not in sys.path:
+        sys.path.insert(0, src_dir)
+    if project_root not in sys.path:
+        sys.path.insert(0, project_root)
+
+setup_imports()
+
 try:
-    # When the package is installed
     from cryptocore.utils.csprng import generate_random_key, generate_random_iv
-    from cryptocore.file_io import read_file, write_file, derive_output_filename, read_file_with_iv, write_file_with_iv
+    from cryptocore.file_io import read_file, write_file, derive_output_filename, read_file_with_iv, \
+        write_file_with_iv
     from cryptocore.modes.ecb import encrypt_ecb, decrypt_ecb
     from cryptocore.modes.cbc import encrypt_cbc, decrypt_cbc
     from cryptocore.modes.cfb import encrypt_cfb, decrypt_cfb
@@ -14,9 +31,9 @@ try:
     from cryptocore.modes.ctr import encrypt_ctr, decrypt_ctr
 
     _import_from_package = True
-except ImportError:
+    print(f"[DEBUG] Using package imports", file=sys.stderr)
+except ImportError as e1:
     try:
-        # When we launch from source
         from src.cryptocore.utils.csprng import generate_random_key, generate_random_iv
         from src.cryptocore.file_io import read_file, write_file, derive_output_filename, read_file_with_iv, \
             write_file_with_iv
@@ -27,11 +44,14 @@ except ImportError:
         from src.cryptocore.modes.ctr import encrypt_ctr, decrypt_ctr
 
         _import_from_package = False
-    except ImportError as e:
-        print(f"Error importing cryptocore modules: {e}", file=sys.stderr)
+        print(f"[DEBUG] Using source imports", file=sys.stderr)
+    except ImportError as e2:
+        print(f"Error importing cryptocore modules:", file=sys.stderr)
+        print(f"  Package import error: {e1}", file=sys.stderr)
+        print(f"  Source import error: {e2}", file=sys.stderr)
         sys.exit(1)
 
-# Try to import hash modules
+# Importing hash functions
 try:
     if _import_from_package:
         from cryptocore.hash.sha256 import SHA256
@@ -45,7 +65,7 @@ except ImportError:
     SHA256 = None
     SHA3_256 = None
 
-# Try to import HMAC module
+# Import HMAC
 try:
     if _import_from_package:
         from cryptocore.mac import compute_hmac_hex
@@ -59,7 +79,7 @@ except ImportError:
     compute_hmac_hex = None
     HMAC = None
 
-# Try to import GCM module
+# Import GCM
 try:
     if _import_from_package:
         from cryptocore.modes.gcm import encrypt_gcm, decrypt_gcm
@@ -71,6 +91,16 @@ except ImportError:
     encrypt_gcm = None
     decrypt_gcm = None
 
+# Import KDF
+try:
+    if _import_from_package:
+        from cryptocore.kdf.pbkdf2 import pbkdf2_hmac_sha256
+    else:
+        from src.cryptocore.kdf.pbkdf2 import pbkdf2_hmac_sha256
+    _kdf_available = True
+except ImportError:
+    _kdf_available = False
+    pbkdf2_hmac_sha256 = None
 
 def parse_arguments(args=None):
     if args is None:
@@ -102,8 +132,11 @@ Examples:
   # HMAC computation
   cryptocore dgst --algorithm sha256 --hmac --key 00112233445566778899aabbccddeeff --input document.pdf
 
-  # HMAC verification
-  cryptocore dgst --algorithm sha256 --hmac --key 00112233445566778899aabbccddeeff --input document.pdf --verify expected.hmac
+  # Key derivation from password
+  cryptocore derive --password "MySecurePassword123!" --salt a1b2c3d4e5f601234567890123456789 --iterations 100000 --length 32
+
+  # Key derivation with auto-generated salt
+  cryptocore derive --password "AnotherPassword" --iterations 500000 --length 16
 
   # Legacy mode (for backward compatibility)
   cryptocore --algorithm aes --mode cbc --encrypt --input plaintext.txt
@@ -126,6 +159,11 @@ Examples:
     if _hash_available:
         dgst_parser = subparsers.add_parser('dgst', help='Compute hash or HMAC of files')
         _add_dgst_arguments(dgst_parser)
+
+    # 'derive' command (only if KDF is available)
+    if _kdf_available:
+        derive_parser = subparsers.add_parser('derive', help='Derive keys from passwords')
+        _add_derive_arguments(derive_parser)
 
     return parser.parse_args(args)
 
@@ -183,6 +221,53 @@ def _add_dgst_arguments(parser):
     parser.add_argument('--verify', required=False,
                         help='Verify HMAC against file containing expected HMAC')
 
+
+def _add_derive_arguments(parser):
+    """
+    Add arguments for the derive command.
+    """
+    # Password source - exactly one required
+    password_group = parser.add_argument_group('password source (required)')
+    password_source = password_group.add_mutually_exclusive_group(required=True)
+    password_source.add_argument('--password',
+                                 help='Password string (use quotes for special characters)')
+    password_source.add_argument('--password-file',
+                                 help='Read password from file instead of command line')
+    password_source.add_argument('--env-var',
+                                 help='Read password from environment variable')
+
+    parser.add_argument('--salt',
+                        help='Salt as hexadecimal string (default: random 16 bytes)')
+    parser.add_argument('--iterations', type=int, default=100000,
+                        help='Iteration count (default: 100000)')
+    parser.add_argument('--length', type=int, default=32,
+                        help='Derived key length in bytes (default: 32)')
+    parser.add_argument('--algorithm', default='pbkdf2',
+                        choices=['pbkdf2'],  # For now only PBKDF2
+                        help='KDF algorithm (default: pbkdf2)')
+    parser.add_argument('--output',
+                        help='Output file for derived key (optional)')
+    parser.add_argument('--force', action='store_true',
+                        help='Overwrite output file if it exists')
+
+    parser.epilog = """\
+Examples:
+  # Basic key derivation with specified salt
+  cryptocore derive --password "MySecurePassword123!" --salt a1b2c3d4e5f601234567890123456789
+
+  # Auto-generated salt
+  cryptocore derive --password "AnotherPassword" --iterations 500000 --length 16
+
+  # Read password from file
+  cryptocore derive --password-file password.txt --salt fixedappsalt --iterations 10000
+
+  # Save derived key to file
+  cryptocore derive --password "app_key" --output derived_key.bin
+
+  # Use environment variable
+  $env:MY_PASSWORD = "Secret123"
+  cryptocore derive --env-var MY_PASSWORD --iterations 100000
+"""
 
 def validate_key_hex(key_hex: str, hmac_mode: bool = False) -> bytes:
     try:
@@ -445,9 +530,6 @@ def perform_hmac_operation(args):
 
 
 def perform_dgst_operation(args):
-    """
-    Perform hash or HMAC computation/verification.
-    """
     if not _hash_available:
         print("Error: Hash functionality not available", file=sys.stderr)
         sys.exit(1)
@@ -816,6 +898,139 @@ def _perform_gcm_operation(args, operation):
             sys.exit(1)
 
 
+def perform_derive_operation(args):
+
+    if not _kdf_available:
+        print("Error: Key derivation functionality not available", file=sys.stderr)
+        sys.exit(1)
+
+    # Get password from appropriate source
+    password = None
+    password_source = "command line"
+
+    if args.password_file:
+        # Read password from file
+        try:
+            with open(args.password_file, 'r') as f:
+                password = f.read().strip()
+            password_source = f"file: {args.password_file}"
+        except Exception as e:
+            print(f"Error reading password file: {e}", file=sys.stderr)
+            sys.exit(1)
+    elif args.env_var:
+        # Read password from environment variable
+        password = os.getenv(args.env_var)
+        if password is None:
+            print(f"Error: Environment variable '{args.env_var}' not set", file=sys.stderr)
+            sys.exit(1)
+        password_source = f"env var: {args.env_var}"
+    else:
+        # Use password from command line
+        password = args.password
+
+    # Validate parameters
+    if args.iterations < 1:
+        print(f"Error: Iterations must be at least 1, got {args.iterations}", file=sys.stderr)
+        sys.exit(1)
+
+    if args.length < 1:
+        print(f"Error: Key length must be at least 1 byte, got {args.length}", file=sys.stderr)
+        sys.exit(1)
+
+    # Handle salt
+    salt = None
+    salt_hex = None
+    salt_source = "provided"
+
+    if args.salt:
+        # Use provided salt
+        try:
+            # Clean hex string
+            clean_salt = args.salt.lower().replace('0x', '').replace('\\x', '').replace(' ', '')
+            if not all(c in '0123456789abcdef' for c in clean_salt):
+                print(f"Error: Salt must be valid hexadecimal string", file=sys.stderr)
+                sys.exit(1)
+
+            salt = bytes.fromhex(clean_salt)
+            salt_hex = clean_salt
+        except ValueError as e:
+            print(f"Error: Invalid salt format: {e}", file=sys.stderr)
+            sys.exit(1)
+    else:
+        # Generate random salt
+        try:
+            from cryptocore.utils.csprng import generate_random_bytes
+            salt = generate_random_bytes(16)  # 16 bytes = 128 bits
+            salt_hex = salt.hex()
+            salt_source = "generated"
+        except ImportError:
+            # Fallback to os.urandom
+            salt = os.urandom(16)
+            salt_hex = salt.hex()
+            salt_source = "generated (fallback)"
+
+    # Check if output file exists and --force is not specified
+    if args.output and os.path.exists(args.output) and not args.force:
+        print(f"Error: File exists: {args.output}. Use --force to overwrite", file=sys.stderr)
+        sys.exit(1)
+
+    try:
+        # Derive key using PBKDF2
+        derived_key = pbkdf2_hmac_sha256(
+            password=password,
+            salt=salt,
+            iterations=args.iterations,
+            dklen=args.length
+        )
+
+        # Clear password from memory
+        password = "X" * len(password) if password else None
+
+    except Exception as e:
+        print(f"Error during key derivation: {e}", file=sys.stderr)
+        sys.exit(1)
+
+        # Output format: KEY_HEX SALT_HEX (always compact format)
+    key_hex = derived_key.hex()
+    compact_output = f"{key_hex} {salt_hex}\n"
+
+    # Handle output
+    if args.output:
+        try:
+            # Create directory if it doesn't exist
+            output_dir = os.path.dirname(args.output)
+            if output_dir and not os.path.exists(output_dir):
+                os.makedirs(output_dir, exist_ok=True)
+
+            # Write compact format to file
+            mode = 'w' if args.force else 'x'
+            with open(args.output, mode) as f:
+                f.write(compact_output)
+
+            # Also print to stdout for consistency
+            sys.stdout.write(compact_output)
+
+        except FileExistsError:
+            print(f"Error: File exists: {args.output}. Use --force to overwrite", file=sys.stderr)
+            sys.exit(1)
+        except PermissionError:
+            print(f"Error: Permission denied writing to: {args.output}", file=sys.stderr)
+            sys.exit(1)
+        except IOError as e:
+            print(f"Error writing to file: {e}", file=sys.stderr)
+            sys.exit(1)
+        except Exception as e:
+            print(f"Unexpected error writing to file: {e}", file=sys.stderr)
+            sys.exit(1)
+    else:
+        # No output file: write compact format to stdout
+        sys.stdout.write(compact_output)
+
+    # Security: Clear sensitive data
+    derived_key = None
+    salt = None
+
+
 def main():
     try:
         args = parse_arguments()
@@ -824,6 +1039,8 @@ def main():
             perform_crypto_operation(args)
         elif args.command == 'dgst':
             perform_dgst_operation(args)
+        elif args.command == 'derive':
+            perform_derive_operation(args)
         else:
             print(f"Error: Unknown command: {args.command}", file=sys.stderr)
             sys.exit(1)

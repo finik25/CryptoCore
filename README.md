@@ -5,13 +5,14 @@ Minimalist cryptographic provider in Python. Educational project focused on unde
 
 ## Features
 
-- **AES-128 encryption/decryption** in multiple modes
+- **AES-128 encryption/decryption** in multiple modes (ECB, CBC, CFB, OFB, CTR, GCM)
 - **Authenticated Encryption** with GCM mode (NIST SP 800-38D)
 - **Associated Authenticated Data (AAD)** support for GCM
 - **Catastrophic failure handling** - no plaintext output on authentication failure
 - **SHA-256 and SHA3-256 hashing** with optional file output
 - **HMAC-SHA256 authentication** for data integrity and authenticity
-- **Six supported AES modes**: ECB, CBC, CFB, OFB, CTR, GCM
+- **PBKDF2-HMAC-SHA256 key derivation** from passwords (RFC 2898)
+- **Key hierarchy functions** for deterministic key derivation
 - **Automatic key generation** for encryption operations
 - **Weak key detection** with warnings for insecure keys
 - **HMAC verification** with tamper detection
@@ -21,7 +22,7 @@ Minimalist cryptographic provider in Python. Educational project focused on unde
 - **Binary file handling** - works with any file type
 - **OpenSSL compatibility** - verified against industry standard
 - **Command-line interface** with comprehensive validation
-- **Comprehensive test suite** - 184+ tests covering edge cases and interoperability
+- **Comprehensive test suite** - 220+ tests covering edge cases and interoperability
 
 ## Requirements
 
@@ -54,7 +55,7 @@ pip list | Select-String cryptocore
 
 ## Usage
 
-CryptoCore supports two command modes: subcommands (recommended) and legacy mode.
+CryptoCore supports three command modes: subcommands (recommended) and legacy mode.
 
 ### Subcommands Mode (Recommended)
 
@@ -103,10 +104,29 @@ cryptocore dgst --algorithm sha256 --hmac --key 00112233445566778899aabbccddeeff
 echo -n "Authenticate this" | cryptocore dgst --algorithm sha256 --hmac --key 00112233445566778899aabbccddeeff --input -
 ```
 
+#### Key Derivation
+```powershell
+# Basic key derivation with specified salt
+cryptocore derive --password "MySecurePassword123!" --salt a1b2c3d4e5f601234567890123456789
+
+# Key derivation with auto-generated salt
+cryptocore derive --password "AnotherPassword" --iterations 50000 --length 16
+
+# Read password from file
+cryptocore derive --password-file password.txt --salt fixedappsalt --iterations 10000
+
+# Derive key and save to file
+cryptocore derive --password "app_key" --output derived_key.bin
+
+# Use environment variable
+$env:MY_PASSWORD = "Secret123"
+cryptocore derive --env-var MY_PASSWORD --iterations 10000
+```
+
 #### Output File Support:
-- **Without `--output`**: Hash/HMAC is printed to stdout
-- **With `--output`**: Hash/HMAC is written to specified file
-- Format: `{hash/hmac}  {filename}` (or `{hash/hmac} -` for stdin)
+- **Without `--output`**: Hash/HMAC/Key is printed to stdout
+- **With `--output`**: Result is written to specified file
+- **Key Derivation Format**: `{KEY_HEX} {SALT_HEX}` (both as hexadecimal strings)
 
 ### Legacy Mode
 
@@ -116,12 +136,35 @@ For backward compatibility, you can still use the old syntax:
 # Encryption (legacy mode)
 cryptocore --algorithm aes --mode ecb --encrypt --input plaintext.txt
 
-# Note: Legacy mode doesn't support hash, HMAC, or GCM operations
+# Note: Legacy mode doesn't support hash, HMAC, GCM, or derive operations
+```
+
+## Key Derivation
+
+### PBKDF2-HMAC-SHA256
+CryptoCore implements PBKDF2-HMAC-SHA256 for deriving cryptographic keys from passwords, following RFC 2898 specification.
+
+### Security Considerations:
+- **Minimum iterations**: 100,000 recommended for production use
+- **Salt size**: 16 bytes (128 bits) minimum, automatically generated if not provided
+- **Password handling**: Use `--password-file` or `--env-var` for sensitive passwords
+- **Memory security**: Password cleared from memory after use
+- **Deterministic**: Same password+salt+iterations always produces same key
+
+### Key Hierarchy
+The library also provides deterministic key derivation from master keys:
+```python
+from cryptocore.kdf import derive_key
+
+master_key = os.urandom(32)
+encryption_key = derive_key(master_key, "encryption", 32)
+auth_key = derive_key(master_key, "authentication", 32)
+# Different contexts produce completely different keys
 ```
 
 ## Authenticated Encryption (GCM Mode)
 
-CryptoCore now supports **Galois/Counter Mode (GCM)** for authenticated encryption with associated data (AEAD).
+CryptoCore supports **Galois/Counter Mode (GCM)** for authenticated encryption with associated data (AEAD).
 
 ### GCM Features:
 - **Authenticated encryption** with AES-128 in GCM mode
@@ -161,6 +204,28 @@ cryptocore crypto --algorithm aes --mode gcm --decrypt --key 0011223344556677889
 
 ### Basic Operations
 
+#### Key Derivation Examples:
+```powershell
+# Basic derivation with specified salt
+cryptocore derive --password "MySecurePassword123!" --salt a1b2c3d4e5f601234567890123456789
+> 10ce3b9b49f63847bf57b4edf9a176b1f5ebfc0ab51832f814749e6ff2ed6ed6 a1b2c3d4e5f601234567890123456789
+
+# Derivation with auto-generated salt
+cryptocore derive --password "AnotherPassword" --iterations 500000 --length 16
+[INFO] Generated random salt: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+> 8d969eef6ecad3c29a3a629280e686cf e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+
+# Save derived key to file
+cryptocore derive --password "app_key" --output derived_key.bin
+[INFO] Generated random salt: 8f1b8e7d6c5b4a392817263544332211
+Success: Key derivation completed
+  Output file: derived_key.bin
+  Derived key (hex): 7d4e3b2a1f0e9d8c7b6a594837261504f3e2d1c0bfae9d8c7b6a594837261504
+  Salt (hex): 8f1b8e7d6c5b4a392817263544332211
+  Iterations: 100000
+  Key length: 32 bytes
+```
+
 #### Encryption with Auto-generated Key:
 ```powershell
 # Encryption without --key (key will be generated automatically)
@@ -194,63 +259,6 @@ cryptocore crypto --algorithm aes --mode gcm --decrypt --key 0011223344556677889
 > Exit code: 1
 ```
 
-#### Encryption with Explicit IV:
-```powershell
-# Encryption with specified IV (CBC, CFB, OFB, CTR modes)
-cryptocore crypto --algorithm aes --mode cbc --encrypt --key 00112233445566778899aabbccddeeff --iv 000102030405060708090a0b0c0d0e0f --input data.txt
-
-# Note: If --iv is omitted, a random IV will be generated and included in the output file
-# For decryption, if IV is stored in the file (CryptoCore default), don't use --iv flag
-# If decrypting OpenSSL-encrypted files (IV not in file), provide --iv explicitly
-```
-
-#### Hash Operations:
-```powershell
-# SHA-256 of a file (stdout)
-cryptocore dgst --algorithm sha256 --input data.txt
-d7a8fbb307d7809469ca9abcb0082e4f8d5651e46d3cdb762d02d0bf37c9e592  data.txt
-
-# SHA3-256 of a file (stdout)
-cryptocore dgst --algorithm sha3-256 --input data.txt
-a7ffc6f8bf1ed76651c14756a061d662f580ff4de43b49fa82d80a4b80f8434a  data.txt
-
-# SHA-256 to file
-cryptocore dgst --algorithm sha256 --input data.txt --output hash.txt
-Hash written to: hash.txt
-
-# Verify file content
-cat hash.txt
-d7a8fbb307d7809469ca9abcb0082e4f8d5651e46d3cdb762d02d0bf37c9e592  data.txt
-
-# Hash from stdin
-echo -n "Hello World" | cryptocore dgst --algorithm sha256 --input -
-a591a6d40bf420404a011733cfb7b190d62c65bf0bcda32b57b277d9ad9f146e  -
-```
-
-#### HMAC Operations:
-```powershell
-# Generate HMAC for a file
-cryptocore dgst --algorithm sha256 --hmac --key 00112233445566778899aabbccddeeff --input document.pdf
-b1a2c3d4e5f6012345678901234567890123456789012345678901234567890123  document.pdf
-
-# Save HMAC to file
-cryptocore dgst --algorithm sha256 --hmac --key 00112233445566778899aabbccddeeff --input document.pdf --output document.hmac
-HMAC written to: document.hmac
-
-# Verify HMAC (successful)
-cryptocore dgst --algorithm sha256 --hmac --key 00112233445566778899aabbccddeeff --input document.pdf --verify document.hmac
-[OK] HMAC verification successful for document.pdf
-
-# Verify HMAC with tampered file (fails)
-echo "tampered" >> document.pdf
-cryptocore dgst --algorithm sha256 --hmac --key 00112233445566778899aabbccddeeff --input document.pdf --verify document.hmac
-[ERROR] HMAC verification failed for document.pdf
-
-# HMAC with wrong key (fails)
-cryptocore dgst --algorithm sha256 --hmac --key ffeeffeeddccddaabbcc112233445566 --input document.pdf --verify document.hmac
-[ERROR] HMAC verification failed for document.pdf
-```
-
 ## Testing
 
 ### Run Test Suite
@@ -260,6 +268,11 @@ python -m unittest discover tests -v
 
 ### Specific Test Categories
 ```powershell
+# Run KDF tests (M7)
+python -m unittest tests.test_pbkdf2_vectors -v
+python -m unittest tests.test_hkdf -v
+python -m unittest tests.test_derive_cli -v
+
 # Run GCM tests
 python -m unittest tests.test_gcm -v
 python -m unittest tests.test_gcm_cli -v
@@ -272,45 +285,19 @@ python -m unittest tests.test_dgst -v
 python -m unittest tests.test_hmac -v
 python -m unittest tests.test_hmac_cli -v
 
-# Run SHA-256 implementation tests
-python -m unittest tests.test_hash_sha256 -v
-
-# Run Galois Field tests
-python -m unittest tests.test_galois_field -v
-
 # Test OpenSSL compatibility (requires OpenSSL installed)
 python -m unittest tests.test_openssl_compatibility -v
 
 # Run integration tests
-python -m unittest tests.test_hmac_integration -v
 python -m unittest tests.test_integration -v
 ```
 
-### GCM Security Testing
+### Performance Testing (Separate Run)
 ```powershell
-# Test catastrophic failure with wrong AAD
-cryptocore crypto --algorithm aes --mode gcm --encrypt --key 00112233445566778899aabbccddeeff --aad correct_aad --input test.txt --output encrypted.gcm
-cryptocore crypto --algorithm aes --mode gcm --decrypt --key 00112233445566778899aabbccddeeff --aad wrong_aad --input encrypted.gcm --output should_fail.txt
-> [ERROR] Authentication failed: AAD mismatch or ciphertext tampered
-
-# Verify no output file was created
-Test-Path should_fail.txt  # Should return False
-
-# Test with large AAD (10KB)
-python -c "import os; print(os.urandom(10000).hex())" > large_aad.hex
-$LARGE_AAD = Get-Content large_aad.hex -Raw
-cryptocore crypto --algorithm aes --mode gcm --encrypt --key 00112233445566778899aabbccddeeff --aad $LARGE_AAD --input test.txt --output test.gcm
-cryptocore crypto --algorithm aes --mode gcm --decrypt --key 00112233445566778899aabbccddeeff --aad $LARGE_AAD --input test.gcm --output decrypted.txt
+# Run performance tests (takes time)
+$env:RUN_PERFORMANCE_TESTS=1
+python -m unittest tests.test_pbkdf2_performance -v
 ```
-
-### OpenSSL Compatibility Testing
-CryptoCore has been verified for interoperability with OpenSSL 3.x:
-- **CBC mode**: Full bidirectional compatibility (CryptoCore ↔ OpenSSL)
-- **ECB mode**: Direct file compatibility
-- **GCM mode**: Compatible with OpenSSL 1.1.0+ (requires manual tag handling)
-- **Hash algorithms**: SHA-256 and SHA3-256 produce identical results
-- **HMAC-SHA256**: Produces identical HMAC values as OpenSSL
-- **IV handling**: CryptoCore stores IV in file, OpenSSL requires separate -iv parameter
 
 ## Project Structure
 
@@ -320,41 +307,45 @@ CryptoCore/
 │   ├── aead/
 │   │   ├── __init__.py
 │   │   ├── encrypt_then_mac.py
+│   ├── kdf/                  
+│   │   ├── __init__.py
+│   │   ├── pbkdf2.py          
+│   │   └── hkdf.py            
 │   ├── modes/
 │   │   ├── __init__.py
-│   │   ├── ecb.py           # ECB mode implementation
-│   │   ├── cbc.py           # CBC mode implementation
-│   │   ├── cfb.py           # CFB mode implementation
-│   │   ├── ofb.py           # OFB mode implementation
-│   │   ├── ctr.py           # CTR mode implementation
-│   │   └── gcm.py           # GCM mode implementation (AEAD)
+│   │   ├── ecb.py
+│   │   ├── cbc.py
+│   │   ├── cfb.py
+│   │   ├── ofb.py
+│   │   ├── ctr.py
+│   │   └── gcm.py         
 │   ├── hash/
 │   │   ├── __init__.py
-│   │   ├── sha256.py        # SHA-256 implementation
-│   │   └── sha3_256.py      # SHA3-256 implementation
-│   ├── mac/                 # Message Authentication Codes
+│   │   ├── sha256.py
+│   │   └── sha3_256.py
+│   ├── mac/
 │   │   ├── __init__.py
-│   │   └── hmac.py          # HMAC-SHA256 implementation (RFC 2104)
+│   │   └── hmac.py
 │   ├── utils/
 │   │   ├── __init__.py
-│   │   ├── padding.py       # PKCS#7 padding
-│   │   ├── csprng.py        # Cryptographically secure pseudorandom number generator
-│   │   ├── nist_tool.py     # NIST test file generator
-│   │   └── galois_field.py  # Galois Field operations for GCM
+│   │   ├── padding.py
+│   │   ├── csprng.py
+│   │   ├── nist_tool.py
+│   │   └── galois_field.py
 │   ├── __init__.py
-│   ├── cli.py               # Command-line interface
-│   ├── file_io.py           # File handling with IV/nonce support
+│   ├── cli.py                  
+│   ├── file_io.py
 │   └── hash_utils.py
-├── tests/                   # Comprehensive test suite (184+ tests)
+├── tests/                    
 │   ├── test_cli.py
-│   ├── test_csprng.py        
-│   ├── test_dgst.py         # Hash command tests
-│   ├── test_hash_sha256.py   
-│   ├── test_hmac.py          
-│   ├── test_hmac_cli.py     
-│   ├── test_hmac_integration.py 
-│   ├── test_gcm.py          # GCM implementation tests
-│   ├── test_gcm_cli.py      # GCM CLI tests
+│   ├── test_csprng.py
+│   ├── test_dgst.py
+│   ├── test_hash_sha256.py
+│   ├── test_hmac.py
+│   ├── test_hmac_cli.py
+│   ├── test_hmac_integration.py
+│   ├── test_gcm.py
+│   ├── test_gcm_cli.py
 │   ├── test_gcm_catastrophic_failure.py
 │   ├── test_gcm_aad_comprehensive.py
 │   ├── test_galois_field.py
@@ -367,9 +358,13 @@ CryptoCore/
 │   ├── test_file_io.py
 │   ├── test_encrypt_then_mac.py
 │   ├── test_dgst_edge_cases.py
-│   ├── test_integration.py  # End-to-end integration tests
+│   ├── test_pbkdf2_vectors.py  
+│   ├── test_hkdf.py           
+│   ├── test_derive_cli.py      
+│   ├── test_pbkdf2_performance.py  
+│   ├── test_integration.py
 │   └── test_openssl_compatibility.py
-├── setup.py                 # Package configuration
+├── setup.py
 ├── requirements.txt
 └── README.md
 ```
@@ -383,6 +378,7 @@ CryptoCore/
 - **SHA3-256** (using Python's hashlib)
 - **HMAC-SHA256** (RFC 2104 implementation)
 - **GCM mode** (NIST SP 800-38D with Galois Field multiplication)
+- **PBKDF2-HMAC-SHA256** (RFC 2898 implementation)
 - **ECB, CBC, CFB, OFB, CTR** modes with manual implementation
 - **PKCS#7 padding** with full validation
 - **CSPRNG** using `os.urandom()` for cryptographic security
@@ -391,13 +387,21 @@ CryptoCore/
 ### GCM Implementation Details
 
 The GCM implementation follows NIST SP 800-38D specification:
-
 - **Nonce**: 12-byte recommended size (96 bits)
 - **Tag**: 16-byte authentication tag (128 bits)
 - **AAD**: Arbitrary length Associated Authenticated Data
 - **Galois Field**: GF(2^128) with irreducible polynomial `x^128 + x^7 + x^2 + x + 1`
 - **GHASH**: Custom implementation using optimized Galois Field multiplication
 - **Security**: Catastrophic failure on authentication error
+
+### PBKDF2 Implementation Details
+
+The PBKDF2 implementation follows RFC 2898:
+- **Password handling**: Any length, converted to bytes with UTF-8 encoding
+- **Salt handling**: 16-byte minimum, hex input or auto-generation
+- **Iterations**: Configurable, default 100,000 for security
+- **Key length**: Arbitrary bytes output, truncated to exact requested length
+- **Algorithm**: HMAC-SHA256 as the pseudorandom function
 
 ### Security Notes
 
@@ -406,27 +410,15 @@ The GCM implementation follows NIST SP 800-38D specification:
 - SHA3-256 uses Python's built-in hashlib
 - HMAC implementation follows RFC 2104 with proper key processing
 - GCM implementation follows NIST SP 800-38D with custom Galois Field arithmetic
+- PBKDF2 implementation follows RFC 2898 specification
 - IV/Nonce generation uses cryptographically secure random numbers
 - Automatic key generation uses CSPRNG (`os.urandom()`)
 - Weak key detection warns about obviously insecure keys
 - HMAC verification uses constant-time comparison
 - GCM provides catastrophic failure - no plaintext output on auth error
+- PBKDF2 clears password from memory after use
 - Educational focus - not for production cryptographic use
 - All file operations in binary mode
-
-### HMAC Implementation Details
-
-The HMAC-SHA256 implementation follows RFC 2104 precisely:
-```
-HMAC(K, m) = H((K ⊕ opad) || H((K ⊕ ipad) || m))
-```
-Where:
-- `H` is SHA-256 hash function
-- `K` is the secret key (any length, processed per RFC)
-- `opad` = 0x5c repeated 64 times
-- `ipad` = 0x36 repeated 64 times
-- Keys longer than 64 bytes are hashed first
-- Keys shorter than 64 bytes are padded with zeros
 
 ## Troubleshooting
 
@@ -445,6 +437,11 @@ Where:
 $env:Path += ";C:\Program Files\OpenSSL-Win64\bin"
 openssl version
 ```
+
+**PBKDF2 performance:**
+- 100,000 iterations take ~60 seconds on modern hardware (by design)
+- For testing, use lower iteration counts (1,000-10,000)
+- Performance test can be skipped: `$env:RUN_PERFORMANCE_TESTS=0`
 
 **File not found errors:**
 - Ensure input file exists in current directory
@@ -469,13 +466,16 @@ openssl version
 - Verification files must contain HMAC in format: `HMAC_VALUE  FILENAME`
 - Ensure verification file exists and is readable
 
+**Key derivation errors:**
+- `--password`, `--password-file`, or `--env-var` required (exactly one)
+- Invalid salt format (must be hex string)
+- Iterations must be ≥ 1
+- Key length must be ≥ 1 byte
+- Output file exists (use `--force` to overwrite)
+
 **Permission errors:**
 - Run PowerShell as Administrator if writing to protected directories
 - Use `--force` flag to overwrite existing files
-
-**Auto-generated key not displayed:**
-- Ensure you're not providing `--key` argument for encryption
-- Check console output for `[INFO] Generated random key:` message
 
 **Unicode filename limitations:**
 - Some systems may have limitations with Unicode characters in filenames
