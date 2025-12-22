@@ -2,37 +2,32 @@ import argparse
 import sys
 import os
 from typing import Optional, List
+import logging
 
-
-def setup_imports():
-    import sys
-    import os
-
-    current_dir = os.path.dirname(os.path.abspath(__file__))
-
-    src_dir = os.path.dirname(current_dir)  # ../src/cryptocore -> ../src
-    project_root = os.path.dirname(src_dir)  # ../src -> root project
-
-    if src_dir not in sys.path:
-        sys.path.insert(0, src_dir)
-    if project_root not in sys.path:
-        sys.path.insert(0, project_root)
-
-setup_imports()
+logger = logging.getLogger('cryptocore')
+logger.setLevel(logging.WARNING)
 
 try:
     from cryptocore.utils.csprng import generate_random_key, generate_random_iv
-    from cryptocore.file_io import read_file, write_file, derive_output_filename, read_file_with_iv, \
-        write_file_with_iv
+    from cryptocore.file_io import read_file, write_file, derive_output_filename, read_file_with_iv, write_file_with_iv
     from cryptocore.modes.ecb import encrypt_ecb, decrypt_ecb
     from cryptocore.modes.cbc import encrypt_cbc, decrypt_cbc
     from cryptocore.modes.cfb import encrypt_cfb, decrypt_cfb
     from cryptocore.modes.ofb import encrypt_ofb, decrypt_ofb
     from cryptocore.modes.ctr import encrypt_ctr, decrypt_ctr
 
-    _import_from_package = True
-    print(f"[DEBUG] Using package imports", file=sys.stderr)
-except ImportError as e1:
+    _imported_as_package = True
+
+except ImportError:
+    import sys
+    import os
+
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    project_root = os.path.dirname(os.path.dirname(current_dir))
+
+    if project_root not in sys.path:
+        sys.path.insert(0, project_root)
+
     try:
         from src.cryptocore.utils.csprng import generate_random_key, generate_random_iv
         from src.cryptocore.file_io import read_file, write_file, derive_output_filename, read_file_with_iv, \
@@ -43,64 +38,89 @@ except ImportError as e1:
         from src.cryptocore.modes.ofb import encrypt_ofb, decrypt_ofb
         from src.cryptocore.modes.ctr import encrypt_ctr, decrypt_ctr
 
-        _import_from_package = False
-        print(f"[DEBUG] Using source imports", file=sys.stderr)
-    except ImportError as e2:
-        print(f"Error importing cryptocore modules:", file=sys.stderr)
-        print(f"  Package import error: {e1}", file=sys.stderr)
-        print(f"  Source import error: {e2}", file=sys.stderr)
+        _imported_as_package = False
+
+    except ImportError as e:
+        print(f"Failed to import CryptoCore modules:", file=sys.stderr)
+        print(f"  Package import failed, trying src import...", file=sys.stderr)
+        print(f"  Final error: {e}", file=sys.stderr)
+        print(f"  Current sys.path:", file=sys.stderr)
+        for p in sys.path:
+            print(f"    {p}", file=sys.stderr)
         sys.exit(1)
 
-# Importing hash functions
-try:
-    if _import_from_package:
-        from cryptocore.hash.sha256 import SHA256
-        from cryptocore.hash.sha3_256 import SHA3_256
-    else:
-        from src.cryptocore.hash.sha256 import SHA256
-        from src.cryptocore.hash.sha3_256 import SHA3_256
-    _hash_available = True
-except ImportError:
-    _hash_available = False
+
+def import_optional_module(module_name, import_func):
+    try:
+        if _imported_as_package:
+            import_func(package_prefix='cryptocore')
+        else:
+            import_func(package_prefix='src.cryptocore')
+        return True
+    except ImportError:
+        return False
+
+
+# Hash functions
+def import_hash_modules(package_prefix):
+    exec(f"""
+from {package_prefix}.hash.sha256 import SHA256
+from {package_prefix}.hash.sha3_256 import SHA3_256
+""", globals())
+
+
+_hash_available = import_optional_module('hash', import_hash_modules)
+
+
+# HMAC
+def import_hmac_modules(package_prefix):
+    exec(f"""
+from {package_prefix}.mac.hmac import HMAC, compute_hmac_hex
+""", globals())
+
+
+_hmac_available = import_optional_module('hmac', import_hmac_modules)
+
+
+# GCM
+def import_gcm_modules(package_prefix):
+    exec(f"""
+from {package_prefix}.modes.gcm import encrypt_gcm, decrypt_gcm
+""", globals())
+
+
+_gcm_available = import_optional_module('gcm', import_gcm_modules)
+
+
+# PBKDF2
+def import_kdf_modules(package_prefix):
+    exec(f"""
+from {package_prefix}.kdf.pbkdf2 import pbkdf2_hmac_sha256
+""", globals())
+
+
+_kdf_available = import_optional_module('pbkdf2', import_kdf_modules)
+
+if not _hash_available:
     SHA256 = None
     SHA3_256 = None
 
-# Import HMAC
-try:
-    if _import_from_package:
-        from cryptocore.mac import compute_hmac_hex
-        from cryptocore.mac.hmac import HMAC
-    else:
-        from src.cryptocore.mac import compute_hmac_hex
-        from src.cryptocore.mac.hmac import HMAC
-    _hmac_available = True
-except ImportError:
-    _hmac_available = False
-    compute_hmac_hex = None
+if not _hmac_available:
     HMAC = None
+    compute_hmac_hex = None
 
-# Import GCM
-try:
-    if _import_from_package:
-        from cryptocore.modes.gcm import encrypt_gcm, decrypt_gcm
-    else:
-        from src.cryptocore.modes.gcm import encrypt_gcm, decrypt_gcm
-    _gcm_available = True
-except ImportError:
-    _gcm_available = False
+if not _gcm_available:
     encrypt_gcm = None
     decrypt_gcm = None
 
-# Import KDF
-try:
-    if _import_from_package:
-        from cryptocore.kdf.pbkdf2 import pbkdf2_hmac_sha256
-    else:
-        from src.cryptocore.kdf.pbkdf2 import pbkdf2_hmac_sha256
-    _kdf_available = True
-except ImportError:
-    _kdf_available = False
+if not _kdf_available:
     pbkdf2_hmac_sha256 = None
+
+if logger.isEnabledFor(logging.DEBUG):
+    logger.debug(f"Imports successful. Package mode: {_imported_as_package}")
+    logger.debug(f"Modules available: hash={_hash_available}, hmac={_hmac_available}, "
+                 f"gcm={_gcm_available}, kdf={_kdf_available}")
+
 
 def parse_arguments(args=None):
     if args is None:
