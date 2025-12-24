@@ -1,127 +1,126 @@
+# CryptoCore Руководство пользователя для ОС Ubuntu/Linux
 
-# CryptoCore User Guide for Ubuntu/Linux
+## Быстрая установка
 
-## Quick Installation
-
-### 1. Prerequisites
+### 1. Предварительные требования
 ```bash
-# Update package list
+# Обновить список пакетов
 sudo apt update
 
-# Install Python and tools
+# Установить Python и инструменты
 sudo apt install -y python3-venv python3-pip python3-full git
 
-# Verify Python version (requires 3.8+)
+# Проверить версию Python (требуется 3.8+)
 python3 --version
 ```
 
-### 2. Clone and Setup
+### 2. Клонирование и настройка
 ```bash
-# Clone the repository
+# Клонировать репозиторий
 git clone https://github.com/finik25/CryptoCore.git
 cd CryptoCore
 
-# Create virtual environment
+# Создать виртуальное окружение
 python3 -m venv venv
 
-# Activate virtual environment
+# Активировать виртуальное окружение
 source venv/bin/activate
 
-# Install CryptoCore
+# Установить CryptoCore
 pip install .
 ```
 
-### 3. Verify Installation
+### 3. Проверка установки
 ```bash
-# Check installation
+# Проверить установку
 cryptocore --help
 
-# Run test suite
+# Запустить набор тестов
 python -m unittest discover tests -v
-# Expected: All tests pass (210+ tests)
+# Ожидается: Все тесты проходят (210+ тестов)
 ```
 
-## Basic Concepts
+## Основные понятия
 
-### Command Structure
-CryptoCore supports two command syntaxes:
+### Структура команд
+CryptoCore поддерживает два синтаксиса команд:
 
-**Modern (recommended):**
+**Современный (рекомендуется):**
 ```bash
 cryptocore <command> [options]
-# Example: cryptocore crypto --algorithm aes --mode cbc --encrypt --input file.txt
+# Пример: cryptocore crypto --algorithm aes --mode cbc --encrypt --input file.txt
 ```
 
-**Legacy (backward compatible):**
+**Устаревший (обратная совместимость):**
 ```bash
 cryptocore [options]
-# Example: cryptocore --algorithm aes --mode cbc --encrypt --input file.txt
+# Пример: cryptocore --algorithm aes --mode cbc --encrypt --input file.txt
 ```
 
-### File Naming Convention
-CryptoCore automatically names output files:
-- **Encryption**: `file.txt` → `file.txt.enc` (GCM: `file.txt.gcm`)
-- **Decryption**: `file.txt.enc` → `file.dec.txt`
-- **Hash/HMAC**: Output to stdout by default, or file with `--output`
+### Соглашение об именах файлов
+CryptoCore автоматически называет выходные файлы:
+- **Шифрование**: `file.txt` → `file.txt.enc` (GCM: `file.txt.gcm`)
+- **Дешифрование**: `file.txt.enc` → `file.dec.txt`
+- **Хэш/HMAC**: По умолчанию вывод в stdout, или в файл с `--output`
 
-### Key and IV Format
-- **Keys**: 32 hexadecimal characters (16 bytes) for AES-128
-  Example: `00112233445566778899aabbccddeeff`
-- **IVs**: 32 hexadecimal characters (16 bytes)
-  Example: `aabbccddeeff00112233445566778899`
-- **GCM Nonce**: 24 hexadecimal characters (12 bytes)
-  Example: `112233445566778899aabbcc`
+### Формат ключа и вектора инициализации (IV)
+- **Ключи**: 32 шестнадцатеричных символа (16 байт) для AES-128
+  Пример: `00112233445566778899aabbccddeeff`
+- **IV**: 32 шестнадцатеричных символа (16 байт)
+  Пример: `aabbccddeeff00112233445566778899`
+- **Нонс GCM**: 24 шестнадцатеричных символа (12 байт)
+  Пример: `112233445566778899aabbcc`
 
 ---
 
-## File Encryption & Decryption
+## Шифрование и дешифрование файлов
 
-### 1. Basic AES Encryption (Auto-generated Key)
+### 1. Базовое AES шифрование (автоматически сгенерированный ключ)
 ```bash
-# Create a test file
+# Создать тестовый файл
 echo "This is a secret message for encryption testing" > secret.txt
 
-# Encrypt with auto-generated key (key will be displayed)
+# Зашифровать с автоматически сгенерированным ключом (ключ будет показан)
 cryptocore crypto --algorithm aes --mode cbc --encrypt --input secret.txt
-# Output shows: Generated random key: 1a2b3c4d5e6f7890abcdef1234567890
+# Вывод показывает: Generated random key: 1a2b3c4d5e6f7890abcdef1234567890
 
-# The encrypted file is saved as: secret.txt.enc
+# Зашифрованный файл сохраняется как: secret.txt.enc
 ls -la secret.txt.enc
 ```
 
-### 2. Encryption with Specified Key
+### 2. Шифрование с указанным ключом
 ```bash
-# Generate a key (alternative: use your own)
+# Сгенерировать ключ (альтернатива: использовать свой)
 python3 -c "import os; print('Key:', os.urandom(16).hex())"
 
-# Encrypt with specific key
+# Зашифровать с конкретным ключом
 cryptocore crypto --algorithm aes --mode cbc --encrypt \
   --key 00112233445566778899aabbccddeeff \
   --input secret.txt \
   --output encrypted.bin
 
-# Verify file contains IV + ciphertext
+# Проверить, что файл содержит IV + шифротекст
 echo "File size: $(wc -c < encrypted.bin) bytes"
-# Should be: original size + padding + 16 bytes IV
+# Должно быть: исходный размер + дополнение + 16 байт IV
 ```
 
-### 3. Decryption
+### 3. Дешифрование
 ```bash
-# Decrypt using the same key
+# Дешифровать с использованием того же ключа
 cryptocore crypto --algorithm aes --mode cbc --decrypt \
   --key 00112233445566778899aabbccddeeff \
   --input encrypted.bin \
   --output decrypted.txt
 
-# Verify decryption
+# Проверить дешифрование
 diff secret.txt decrypted.txt
-echo $?  # Should be 0 (no difference)
+echo $?  # Должен быть 0 (нет различий)
 cat decrypted.txt
 ```
 
-### 4. Using Legacy Mode
+### 4. Использование устаревшего режима
 ```bash
-# Same operation using legacy syntax
+# Та же операция с использованием устаревшего синтаксиса
 cryptocore --algorithm aes --mode cbc --encrypt \
   --key 00112233445566778899aabbccddeeff \
   --input secret.txt
@@ -131,49 +130,49 @@ cryptocore --algorithm aes --mode cbc --decrypt \
   --input secret.txt.enc
 ```
 
-### 5. Overwriting Files (--force)
+### 5. Перезапись файлов (--force)
 ```bash
-# Create existing output file
+# Создать существующий выходной файл
 echo "old content" > output.txt
 
-# Encryption will fail without --force
+# Шифрование завершится неудачей без --force
 cryptocore crypto --algorithm aes --mode cbc --encrypt \
   --key 00112233445566778899aabbccddeeff \
   --input secret.txt \
   --output output.txt
-# Error: File exists. Use --force to overwrite.
+# Ошибка: File exists. Use --force to overwrite.
 
-# Use --force to overwrite
+# Использовать --force для перезаписи
 cryptocore crypto --algorithm aes --mode cbc --encrypt \
   --key 00112233445566778899aabbccddeeff \
   --input secret.txt \
   --output output.txt \
   --force
-# Success: File overwritten
+# Успех: Файл перезаписан
 ```
 
 ---
 
-## Working with Different Encryption Modes
+## Работа с различными режимами шифрования
 
-### 1. ECB Mode (Educational Only)
+### 1. Режим ECB (Только для обучения)
 ```bash
-# Warning: ECB reveals patterns in data
-echo "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" > pattern.txt  # 32 As
+# Предупреждение: ECB раскрывает паттерны в данных
+echo "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" > pattern.txt  # 32 буквы A
 
 cryptocore crypto --algorithm aes --mode ecb --encrypt \
   --key 00112233445566778899aabbccddeeff \
   --input pattern.txt \
   --output ecb_encrypted.bin
 
-# View hex dump to see pattern
+# Посмотреть hex-дамп, чтобы увидеть паттерн
 hexdump -C ecb_encrypted.bin | head -5
 ```
 
-### 2. CTR Mode (Stream Cipher)
+### 2. Режим CTR (Поточный шифр)
 ```bash
-# CTR doesn't require padding, can encrypt any size
-echo -n "Short" > short.txt  # 5 bytes
+# CTR не требует дополнения, может зашифровать любой размер
+echo -n "Short" > short.txt  # 5 байт
 
 cryptocore crypto --algorithm aes --mode ctr --encrypt \
   --key 00112233445566778899aabbccddeeff \
@@ -181,14 +180,14 @@ cryptocore crypto --algorithm aes --mode ctr --encrypt \
   --input short.txt \
   --output short.ctr.enc
 
-# Verify size matches (no padding added)
+# Проверить соответствие размеров (дополнение не добавлено)
 echo "Original: $(wc -c < short.txt) bytes"
-echo "Encrypted: $(wc -c < short.ctr.enc) bytes"  # Should be 5 + 16 IV
+echo "Encrypted: $(wc -c < short.ctr.enc) bytes"  # Должно быть 5 + 16 IV
 ```
 
-### 3. CFB Mode (Self-Synchronizing)
+### 3. Режим CFB (Самосинхронизирующийся)
 ```bash
-# CFB can process partial blocks
+# CFB может обрабатывать частичные блоки
 cryptocore crypto --algorithm aes --mode cfb --encrypt \
   --key 00112233445566778899aabbccddeeff \
   --iv aabbccddeeff00112233445566778899 \
@@ -196,7 +195,7 @@ cryptocore crypto --algorithm aes --mode cfb --encrypt \
   --output passwd.enc
 ```
 
-### 4. OFB Mode (Keystream Independent)
+### 4. Режим OFB (Независимый поток ключей)
 ```bash
 cryptocore crypto --algorithm aes --mode ofb --encrypt \
   --key 00112233445566778899aabbccddeeff \
@@ -207,212 +206,212 @@ cryptocore crypto --algorithm aes --mode ofb --encrypt \
 
 ---
 
-## Authenticated Encryption with GCM
+## Аутентифицированное шифрование с GCM
 
-### 1. Basic GCM Encryption
+### 1. Базовое GCM шифрование
 ```bash
-# Create important data file
+# Создать файл с важными данными
 echo "Database connection string: postgresql://user:pass@localhost/db" > config.env
 
-# GCM encryption (nonce auto-generated)
+# GCM шифрование (нонс генерируется автоматически)
 cryptocore crypto --algorithm aes --mode gcm --encrypt \
   --key 00112233445566778899aabbccddeeff \
   --input config.env \
   --output config.env.gcm
 
-# File contains: nonce(12) + ciphertext + tag(16)
+# Файл содержит: нонс(12) + шифротекст + тег(16)
 echo "GCM file size: $(wc -c < config.env.gcm) bytes"
 ```
 
-### 2. GCM Decryption with Verification
+### 2. GCM дешифрование с проверкой
 ```bash
-# Decrypt with verification
+# Дешифровать с проверкой
 cryptocore crypto --algorithm aes --mode gcm --decrypt \
   --key 00112233445566778899aabbccddeeff \
   --input config.env.gcm \
   --output config_decrypted.env
 
-# Verify successful decryption
+# Проверить успешное дешифрование
 diff config.env config_decrypted.env
-echo "Exit code: $?"  # Should be 0
+echo "Exit code: $?"  # Должен быть 0
 ```
 
-### 3. GCM with Associated Data (AAD)
+### 3. GCM с ассоциированными данными (AAD)
 ```bash
-# Encrypt with metadata as AAD
+# Зашифровать с метаданными как AAD
 cryptocore crypto --algorithm aes --mode gcm --encrypt \
   --key 00112233445566778899aabbccddeeff \
   --aad "version:2.1|user:alice|env:production" \
   --input config.env \
   --output config_prod.gcm
 
-# Decrypt with correct AAD (succeeds)
+# Дешифровать с правильным AAD (успешно)
 cryptocore crypto --algorithm aes --mode gcm --decrypt \
   --key 00112233445566778899aabbccddeeff \
   --aad "version:2.1|user:alice|env:production" \
   --input config_prod.gcm \
   --output config_verified.env
 
-# Decrypt with wrong AAD (fails catastrophically)
+# Дешифровать с неправильным AAD (завершается неудачей)
 cryptocore crypto --algorithm aes --mode gcm --decrypt \
   --key 00112233445566778899aabbccddeeff \
   --aad "version:1.0|user:eve|env:test" \
   --input config_prod.gcm \
   --output config_tampered.env 2>&1
-# Output: AuthenticationError - no file created
+# Вывод: AuthenticationError - файл не создан
 ```
 
-### 4. Tamper Detection Demonstration
+### 4. Демонстрация обнаружения подделки
 ```bash
-# Create original file
+# Создать исходный файл
 echo "Transfer $1000 to account 123456" > transfer.txt
 
-# Encrypt
+# Зашифровать
 cryptocore crypto --algorithm aes --mode gcm --encrypt \
   --key 00112233445566778899aabbccddeeff \
   --input transfer.txt \
   --output transfer.gcm
 
-# Tamper with the ciphertext
+# Подделать шифротекст
 python3 -c "
 data = open('transfer.gcm', 'rb').read()
-# Change one byte in ciphertext (after nonce)
+# Изменить один байт в шифротексте (после нонса)
 tampered = data[:12] + bytes([data[12] ^ 0x01]) + data[13:]
 open('transfer_tampered.gcm', 'wb').write(tampered)
 "
 
-# Try to decrypt tampered file
+# Попытаться дешифровать подделанный файл
 cryptocore crypto --algorithm aes --mode gcm --decrypt \
   --key 00112233445566778899aabbccddeeff \
   --input transfer_tampered.gcm \
   --output transfer_recovered.txt 2>&1 || true
-# Output: AuthenticationError - GCM tag verification failed
+# Вывод: AuthenticationError - GCM tag verification failed
 ```
 
 ---
 
-## Hashing and Data Integrity
+## Хэширование и целостность данных
 
-### 1. Basic File Hashing
+### 1. Базовое хэширование файлов
 ```bash
-# Create test file
+# Создать тестовый файл
 echo "Hello, CryptoCore! This is a test file." > document.txt
 
-# SHA-256 hash
+# SHA-256 хэш
 cryptocore dgst --algorithm sha256 --input document.txt
-# Output: hash_hex document.txt
+# Вывод: hash_hex document.txt
 
-# SHA3-256 hash
+# SHA3-256 хэш
 cryptocore dgst --algorithm sha3-256 --input document.txt
 
-# Save hash to file
+# Сохранить хэш в файл
 cryptocore dgst --algorithm sha256 --input document.txt --output document.sha256
 cat document.sha256
 ```
 
-### 2. Hash Verification
+### 2. Проверка хэша
 ```bash
-# Compute hash
+# Вычислить хэш
 hash1=$(cryptocore dgst --algorithm sha256 --input document.txt | cut -d' ' -f1)
 echo "Original hash: $hash1"
 
-# Modify file
+# Изменить файл
 echo "Modified content" >> document.txt
 
-# Compute new hash
+# Вычислить новый хэш
 hash2=$(cryptocore dgst --algorithm sha256 --input document.txt | cut -d' ' -f1)
 echo "Modified hash: $hash2"
 
-# Hashes should be different
+# Хэши должны различаться
 if [ "$hash1" != "$hash2" ]; then
     echo "✓ File modification detected"
 fi
 ```
 
-### 3. Hash Large Files
+### 3. Хэширование больших файлов
 ```bash
-# Create large file (10MB)
+# Создать большой файл (10MB)
 dd if=/dev/urandom of=large_file.bin bs=1M count=10 status=progress
 
-# Hash with streaming (uses minimal memory)
+# Хэширование с потоковой обработкой (использует минимальную память)
 time cryptocore dgst --algorithm sha256 --input large_file.bin
 
-# Compare with system sha256sum
+# Сравнить с системной утилитой sha256sum
 time sha256sum large_file.bin
 ```
 
-### 4. Hash from stdin
+### 4. Хэширование из stdin
 ```bash
-# Hash piped data
+# Хэширование данных из конвейера
 echo "Data from pipe" | cryptocore dgst --algorithm sha256 --input -
 
-# Hash command output
+# Хэширование вывода команды
 ls -la | cryptocore dgst --algorithm sha256 --input -
 ```
 
 ---
 
-## Message Authentication Codes (HMAC)
+## Коды аутентификации сообщений (HMAC)
 
-### 1. HMAC Generation
+### 1. Генерация HMAC
 ```bash
-# Create sensitive file
+# Создать конфиденциальный файл
 echo "Credit Card: 4111-1111-1111-1111" > payment.csv
 
-# Generate HMAC
+# Сгенерировать HMAC
 cryptocore dgst --algorithm sha256 --hmac \
   --key 00112233445566778899aabbccddeeff \
   --input payment.csv \
   --output payment.hmac
 
 cat payment.hmac
-# Format: hmac_hex filename
+# Формат: hmac_hex filename
 ```
 
-### 2. HMAC Verification
+### 2. Проверка HMAC
 ```bash
-# First, save expected HMAC
+# Сначала сохранить ожидаемый HMAC
 cryptocore dgst --algorithm sha256 --hmac \
   --key 00112233445566778899aabbccddeeff \
   --input payment.csv > expected.hmac
 
-# Verify (succeeds)
+# Проверить (успешно)
 cryptocore dgst --algorithm sha256 --hmac \
   --key 00112233445566778899aabbccddeeff \
   --input payment.csv \
   --verify expected.hmac
-echo "Exit code: $?"  # Should be 0
+echo "Exit code: $?"  # Должен быть 0
 
-# Modify file and verify (fails)
+# Изменить файл и проверить (неудачно)
 echo "tampered" >> payment.csv
 cryptocore dgst --algorithm sha256 --hmac \
   --key 00112233445566778899aabbccddeeff \
   --input payment.csv \
   --verify expected.hmac
-echo "Exit code: $?"  # Should be 1
+echo "Exit code: $?"  # Должен быть 1
 ```
 
-### 3. Wrong Key Detection
+### 3. Обнаружение неправильного ключа
 ```bash
-# Generate HMAC with key1
+# Сгенерировать HMAC с key1
 cryptocore dgst --algorithm sha256 --hmac \
   --key 00112233445566778899aabbccddeeff \
   --input payment.csv > hmac_key1.txt
 
-# Verify with wrong key (fails)
+# Проверить с неправильным ключом (неудачно)
 cryptocore dgst --algorithm sha256 --hmac \
   --key ffeeddccbbaa99887766554433221100 \
   --input payment.csv \
   --verify hmac_key1.txt
-echo "Wrong key detection: $?"  # Should be 1
+echo "Wrong key detection: $?"  # Должен быть 1
 ```
 
-### 4. HMAC for Large Files
+### 4. HMAC для больших файлов
 ```bash
-# Create 100MB test file
+# Создать тестовый файл 100MB
 dd if=/dev/zero of=large_data.bin bs=1M count=100 status=progress
 
-# Generate HMAC (streaming, memory efficient)
+# Сгенерировать HMAC (потоковая обработка, эффективно по памяти)
 time cryptocore dgst --algorithm sha256 --hmac \
   --key 00112233445566778899aabbccddeeff \
   --input large_data.bin \
@@ -421,18 +420,18 @@ time cryptocore dgst --algorithm sha256 --hmac \
 
 ---
 
-## Key Derivation from Passwords
+## Генерация ключей из паролей
 
-### 1. Basic Key Derivation
+### 1. Базовая генерация ключей
 ```bash
-# Derive key from password with specified salt
+# Сгенерировать ключ из пароля с указанной солью
 cryptocore derive --password "MySecurePassword123!" \
   --salt a1b2c3d4e5f601234567890123456789 \
   --iterations 100000 \
   --length 32
-# Output: derived_key salt
+# Вывод: derived_key salt
 
-# Save to variable
+# Сохранить в переменную
 result=$(cryptocore derive --password "MySecurePassword123!" \
   --salt a1b2c3d4e5f601234567890123456789 \
   --iterations 100000 \
@@ -444,56 +443,56 @@ echo "Key: $key"
 echo "Salt: $salt"
 ```
 
-### 2. Auto-generated Salt
+### 2. Автоматически сгенерированная соль
 ```bash
-# Auto-generate salt (recommended for new passwords)
+# Автоматически сгенерировать соль (рекомендуется для новых паролей)
 cryptocore derive --password "AnotherSecurePassword" \
   --iterations 200000 \
   --length 16
-# Output includes generated salt
+# Вывод включает сгенерированную соль
 ```
 
-### 3. Save Derived Key to File
+### 3. Сохранение сгенерированного ключа в файл
 ```bash
-# Derive and save to file
+# Сгенерировать и сохранить в файл
 cryptocore derive --password "ApplicationSecretKey" \
   --iterations 150000 \
   --length 32 \
   --output app_key.bin
 
-# View key (hex)
+# Посмотреть ключ (hex)
 hexdump -C app_key.bin
 ```
 
-### 4. Password from File
+### 4. Пароль из файла
 ```bash
-# Store password in file
+# Сохранить пароль в файле
 echo -n "FileBasedPassword456!" > password.txt
 chmod 600 password.txt
 
-# Use password file
+# Использовать файл с паролем
 cryptocore derive --password-file password.txt \
   --salt fixedappsalt123456 \
   --iterations 100000
 ```
 
-### 5. Password from Environment Variable
+### 5. Пароль из переменной окружения
 ```bash
-# Set environment variable
+# Установить переменную окружения
 export DB_PASSWORD="DatabaseSecret789!"
 
-# Use environment variable
+# Использовать переменную окружения
 cryptocore derive --env-var DB_PASSWORD \
   --salt dbsalt1234567890 \
   --iterations 100000
 ```
 
-### 6. Complete Password-to-Encryption Workflow
+### 6. Полный рабочий процесс от пароля до шифрования
 ```bash
-# Step 1: Create secret data
+# Шаг 1: Создать конфиденциальные данные
 echo "API_KEY=sk_live_1234567890abcdef" > secrets.env
 
-# Step 2: Derive encryption key from password
+# Шаг 2: Сгенерировать ключ шифрования из пароля
 result=$(cryptocore derive --password "MasterPasswordForSecrets" \
   --iterations 300000 \
   --length 32)
@@ -502,43 +501,43 @@ salt=$(echo $result | cut -d' ' -f2)
 
 echo "Salt (save this): $salt"
 
-# Step 3: Encrypt with derived key
+# Шаг 3: Зашифровать сгенерированным ключом
 cryptocore crypto --algorithm aes --mode gcm --encrypt \
   --key $(echo $key | cut -c1-32) \
   --aad "secrets_env_v1" \
   --input secrets.env \
   --output secrets.env.enc
 
-# Step 4: For decryption, re-derive key using same salt
+# Шаг 4: Для дешифрования повторно сгенерировать ключ, используя ту же соль
 key2=$(cryptocore derive --password "MasterPasswordForSecrets" \
   --salt $salt \
   --iterations 300000 \
   --length 32 | cut -d' ' -f1)
 
-# Step 5: Decrypt
+# Шаг 5: Дешифровать
 cryptocore crypto --algorithm aes --mode gcm --decrypt \
   --key $(echo $key2 | cut -c1-32) \
   --aad "secrets_env_v1" \
   --input secrets.env.enc \
   --output secrets_decrypted.env
 
-# Verify
+# Проверить
 diff secrets.env secrets_decrypted.env && echo "✓ Success"
 ```
 
 ---
 
-## Advanced Usage Examples
+## Продвинутые примеры использования
 
-### 1. Encrypt Directory Contents
+### 1. Шифрование содержимого каталога
 ```bash
-# Create test directory
+# Создать тестовый каталог
 mkdir -p test_data
 echo "File 1 content" > test_data/file1.txt
 echo "File 2 content" > test_data/file2.txt
 echo "File 3 content" > test_data/file3.txt
 
-# Encrypt all files
+# Зашифровать все файлы
 key="00112233445566778899aabbccddeeff"
 for file in test_data/*.txt; do
     cryptocore crypto --algorithm aes --mode ctr --encrypt \
@@ -552,9 +551,9 @@ done
 ls -la test_data/*.enc
 ```
 
-### 2. Batch HMAC Verification
+### 2. Пакетная проверка HMAC
 ```bash
-# Create verification script
+# Создать скрипт проверки
 cat > verify_hmacs.sh << 'EOF'
 #!/bin/bash
 KEY="00112233445566778899aabbccddeeff"
@@ -589,9 +588,9 @@ EOF
 chmod +x verify_hmacs.sh
 ```
 
-### 3. Secure File Transfer Simulation
+### 3. Имитация безопасной передачи файлов
 ```bash
-# Sender side
+# Сторона отправителя
 echo "Confidential report data" > report.txt
 key=$(python3 -c "import os; print(os.urandom(16).hex())")
 echo "Key (share securely): $key"
@@ -602,10 +601,10 @@ cryptocore crypto --algorithm aes --mode gcm --encrypt \
   --input report.txt \
   --output report.txt.gcm
 
-# Simulate transfer
+# Имитировать передачу
 cp report.txt.gcm /tmp/
 
-# Receiver side
+# Сторона получателя
 cd /tmp
 cryptocore crypto --algorithm aes --mode gcm --decrypt \
   --key $key \
@@ -616,16 +615,16 @@ cryptocore crypto --algorithm aes --mode gcm --decrypt \
 cat received_report.txt
 ```
 
-### 4. Integrity Monitoring Script
+### 4. Скрипт мониторинга целостности
 ```bash
-# Monitor file changes with HMAC
+# Мониторинг изменений файлов с HMAC
 cat > monitor_integrity.sh << 'EOF'
 #!/bin/bash
 KEY="00112233445566778899aabbccddeeff"
 LOG_FILE="integrity.log"
 FILES=("important.conf" "data.bin" "script.py")
 
-# Initial HMAC generation
+# Начальная генерация HMAC
 echo "$(date): Initial HMAC generation" >> "$LOG_FILE"
 for file in "${FILES[@]}"; do
     if [ -f "$file" ]; then
@@ -636,7 +635,7 @@ for file in "${FILES[@]}"; do
     fi
 done
 
-# Verification function
+# Функция проверки
 verify_files() {
     echo "$(date): Verifying files" >> "$LOG_FILE"
     ALL_OK=true
@@ -664,7 +663,7 @@ verify_files() {
     fi
 }
 
-# Run verification
+# Запустить проверку
 verify_files
 EOF
 
@@ -673,18 +672,18 @@ chmod +x monitor_integrity.sh
 
 ---
 
-## Troubleshooting
+## Устранение неполадок
 
-### Common Issues and Solutions
+### Распространенные проблемы и решения
 
-#### 1. "File exists" Error
+#### 1. Ошибка "File exists"
 ```bash
-# Error: Output file already exists
+# Ошибка: Выходной файл уже существует
 cryptocore crypto --algorithm aes --mode cbc --encrypt \
   --key 00112233445566778899aabbccddeeff \
   --input data.txt \
   --output existing.txt
-# Solution: Use --force or choose different output name
+# Решение: Использовать --force или выбрать другое имя выходного файла
 
 cryptocore crypto --algorithm aes --mode cbc --encrypt \
   --key 00112233445566778899aabbccddeeff \
@@ -693,23 +692,23 @@ cryptocore crypto --algorithm aes --mode cbc --encrypt \
   --force
 ```
 
-#### 2. "Key must be 16 bytes" Error
+#### 2. Ошибка "Key must be 16 bytes"
 ```bash
-# Wrong: 15 bytes
+# Неправильно: 15 байт
 cryptocore crypto --algorithm aes --mode cbc --encrypt \
   --key 00112233445566778899aabbccddee \
   --input data.txt
-# Error: Key must be 16 bytes
+# Ошибка: Key must be 16 bytes
 
-# Correct: 16 bytes (32 hex characters)
+# Правильно: 16 байт (32 шестнадцатеричных символа)
 cryptocore crypto --algorithm aes --mode cbc --encrypt \
   --key 00112233445566778899aabbccddeeff \
   --input data.txt
 ```
 
-#### 3. OpenSSL Compatibility Issues
+#### 3. Проблемы совместимости с OpenSSL
 ```bash
-# If OpenSSL decryption fails, check IV extraction
+# Если дешифрование OpenSSL завершается неудачей, проверить извлечение IV
 encrypted_file="secret.txt.enc"
 iv=$(head -c 16 "$encrypted_file" | xxd -p)
 ciphertext=$(tail -c +17 "$encrypted_file")
@@ -718,137 +717,137 @@ echo "IV: $iv"
 echo "Ciphertext length: $(echo -n "$ciphertext" | wc -c) bytes"
 ```
 
-#### 4. Permission Denied
+#### 4. Отказано в доступе
 ```bash
-# Running as non-root on protected files
+# Запуск от имени не-root пользователя на защищенных файлах
 sudo cryptocore dgst --algorithm sha256 --input /etc/shadow
-# Alternative: Copy file first
+# Альтернатива: Сначала скопировать файл
 sudo cp /etc/shadow /tmp/
 cryptocore dgst --algorithm sha256 --input /tmp/shadow
 ```
 
-### Debug Mode
+### Режим отладки
 ```bash
-# Enable verbose output for debugging
+# Включить подробный вывод для отладки
 export PYTHONPATH=src:$PYTHONPATH
 python3 -m cryptocore.cli crypto --algorithm aes --mode cbc --encrypt \
   --key 00112233445566778899aabbccddeeff \
   --input test.txt -v
 ```
 
-### Performance Testing
+### Тестирование производительности
 ```bash
-# Create 100MB test file
+# Создать тестовый файл 100MB
 dd if=/dev/urandom of=perf_test.bin bs=1M count=100
 
-# Time encryption
+# Засечь время шифрования
 time cryptocore crypto --algorithm aes --mode cbc --encrypt \
   --key 00112233445566778899aabbccddeeff \
   --input perf_test.bin \
   --output perf_test.enc
 
-# Time decryption
+# Засечь время дешифрования
 time cryptocore crypto --algorithm aes --mode cbc --decrypt \
   --key 00112233445566778899aabbccddeeff \
   --input perf_test.enc \
   --output perf_test.dec
 
-# Clean up
+# Очистить
 rm perf_test.*
 ```
 
 ---
 
-## Quick Reference Cheat Sheet
+## Краткая памятка
 
-### Basic Commands
+### Базовые действия
 ```bash
-# Encryption
+# Шифрование
 cryptocore crypto --algorithm aes --mode MODE --encrypt --key HEX_KEY --input FILE
 
-# Decryption  
+# Дешифрование  
 cryptocore crypto --algorithm aes --mode MODE --decrypt --key HEX_KEY --input FILE
 
-# Hashing
+# Хэширование
 cryptocore dgst --algorithm {sha256|sha3-256} --input FILE
 
 # HMAC
 cryptocore dgst --algorithm sha256 --hmac --key HEX_KEY --input FILE
 
-# Key derivation
+# Генерация ключей
 cryptocore derive --password PASS --salt HEX_SALT --iterations N --length N
 ```
 
-### Common Options
+### Команды CLI
 ```
---input, -i     Input file (use - for stdin)
---output, -o    Output file (stdout if omitted)
---force, -f     Overwrite existing files
---key, -k       Key as hex string (32 chars for AES-128)
---iv            IV as hex string (32 chars for 16 bytes)
---aad           Associated data for GCM
---hmac          Compute HMAC instead of hash
---verify        Verify HMAC against file
+--input, -i     Входной файл (использовать - для stdin)
+--output, -o    Выходной файл (stdout, если не указан)
+--force, -f     Перезаписать существующие файлы
+--key, -k       Ключ в виде hex-строки (32 символа для AES-128)
+--iv            IV в виде hex-строки (32 символа для 16 байт)
+--aad           Ассоциированные данные для GCM
+--hmac          Вычислить HMAC вместо хэша
+--verify        Проверить HMAC по отношению к файлу
 ```
 
-### Mode Comparison
-| Mode | IV Required | Padding | Best For |
+### Сравнение режимов
+| Режим | Требуется IV | Дополнение | Лучше всего для |
 |------|------------|---------|----------|
-| ECB  | No         | Yes     | Education only |
-| CBC  | Yes (16B)  | Yes     | General encryption |
-| CTR  | Yes (16B)  | No      | Stream encryption |
-| CFB  | Yes (16B)  | No      | Self-sync streams |
-| OFB  | Yes (16B)  | No      | Error-resistant |
-| GCM  | Yes (12B)  | No      | Authenticated encryption |
+| ECB  | Нет         | Да     | Только обучение |
+| CBC  | Да (16B)  | Да     | Общее шифрование |
+| CTR  | Да (16B)  | Нет      | Поточное шифрование |
+| CFB  | Да (16B)  | Нет      | Самосинхронизирующиеся потоки |
+| OFB  | Да (16B)  | Нет      | Устойчивость к ошибкам |
+| GCM  | Да (12B)  | Нет      | Аутентифицированное шифрование |
 
-### Key Generation
+### Генерация ключей
 ```bash
-# Generate random key
+# Сгенерировать случайный ключ
 python3 -c "import os; print(os.urandom(16).hex())"
 
-# Generate random IV
+# Сгенерировать случайный IV
 python3 -c "import os; print(os.urandom(16).hex())"
 
-# Generate GCM nonce
+# Сгенерировать нонс GCM
 python3 -c "import os; print(os.urandom(12).hex())"
 ```
 
 ---
 
-## Security Best Practices
+## Рекомендации по безопасности
 
-### 1. Key Management
+### 1. Управление ключами
 ```bash
-# Store keys securely (not in scripts)
+# Хранить ключи безопасно (не в скриптах)
 export ENCRYPTION_KEY=$(cat /path/to/secure/key.txt)
 
-# Use in commands
+# Использовать в командах
 cryptocore crypto --algorithm aes --mode gcm --encrypt \
   --key "$ENCRYPTION_KEY" \
   --input sensitive.data
 ```
 
-### 2. Password Security
+### 2. Безопасность паролей
 ```bash
-# Use strong passwords
+# Использовать надежные пароли
 cryptocore derive --password "$(cat /dev/urandom | tr -dc 'a-zA-Z0-9!@#$%^&*' | head -c 32)" \
   --iterations 300000
 
-# Never store passwords in command history
+# Никогда не хранить пароли в истории команд
 unset HISTFILE
 ```
 
-### 3. File Permissions
+### 3. Права доступа к файлам
 ```bash
-# Set proper permissions
+# Установить правильные права доступа
 chmod 600 encrypted_file.bin
 chmod 400 key.txt
 chmod 700 scripts/
 ```
 
-### 4. Verification Always
+### 4. Всегда проверять
 ```bash
-# Always verify before use
+# Всегда проверять перед использованием
 cryptocore dgst --algorithm sha256 --hmac \
   --key "$KEY" \
   --input downloaded_file.iso \
@@ -857,42 +856,35 @@ cryptocore dgst --algorithm sha256 --hmac \
 
 ---
 
-## Getting Help
+## Получение помощи
 
-### Check Version
+### Проверить версию
 ```bash
 cryptocore --version
 python3 -c "import cryptocore; print(cryptocore.__version__)"
 ```
 
-### View Help
+### Просмотр справки
 ```bash
-# General help
+# Общая справка
 cryptocore --help
 
-# Command-specific help
+# Справка по конкретной команде
 cryptocore crypto --help
 cryptocore dgst --help  
 cryptocore derive --help
 ```
 
-### Test Installation
+### Проверить установку
 ```bash
-# Run all tests
+# Запустить все тесты
 cd /path/to/CryptoCore
 python -m unittest discover tests -v
 
-# Run specific test
+# Запустить конкретный тест
 python -m unittest tests.unit.test_aes -v
 ```
 
-### Report Issues
-If you encounter bugs or have questions:
-1. Check this user guide
-2. Run tests to verify installation
-3. Check Python version (`python3 --version`)
-4. Provide error messages and command used
-
 ---
 
-*User Guide for CryptoCore v1.0.0 on Ubuntu/Linux. All commands tested on Ubuntu 22.04 LTS.*
+*Руководство пользователя для CryptoCore v1.0.0 на Ubuntu/Linux. Все команды протестированы на Ubuntu 22.04 LTS.*

@@ -1,87 +1,86 @@
+# CryptoCore Документация API
+*Версия 1.0.0 | Последнее обновление: Декабрь 2025*
 
-# CryptoCore API Documentation
-*Version 1.0.0 | Last updated: December 2025*
+## Содержание
 
-## Table of Contents
-
-1. [Overview](#overview)
-2. [Installation and Setup](#installation-and-setup)
-3. [Module Reference](#module-reference)
-   - [3.1. Modes of Operation](#31-modes-of-operation)
-   - [3.2. Hash Functions](#32-hash-functions)
-   - [3.3. Message Authentication Codes](#33-message-authentication-codes)
-   - [3.4. Key Derivation Functions](#34-key-derivation-functions)
-   - [3.5. Utility Modules](#35-utility-modules)
-4. [Command Line Interface](#command-line-interface)
-5. [Error Handling and Exceptions](#error-handling-and-exceptions)
-6. [Security Considerations](#security-considerations)
-7. [Testing and Validation](#testing-and-validation)
-8. [Examples and Use Cases](#examples-and-use-cases)
-9. [Compatibility Notes](#compatibility-notes)
+1. [Обзор](#обзор)
+2. [Установка и настройка](#установка-и-настройка)
+3. [Справочник модулей](#справочник-модулей)
+   - [3.1. Режимы работы](#31-режимы-работы)
+   - [3.2. Хэш-функции](#32-хэш-функции)
+   - [3.3. Коды аутентификации сообщений](#33-коды-аутентификации-сообщений)
+   - [3.4. Функции генерации ключей](#34-функции-генерации-ключей)
+   - [3.5. Вспомогательные модули](#35-вспомогательные-модули)
+4. [Интерфейс командной строки](#интерфейс-командной-строки)
+5. [Обработка ошибок и исключения](#обработка-ошибок-и-исключения)
+6. [Вопросы безопасности](#вопросы-безопасности)
+7. [Тестирование и валидация](#тестирование-и-валидация)
+8. [Примеры и варианты использования](#примеры-и-варианты-использования)
+9. [Заметки о совместимости](#заметки-о-совместимости)
 
 ---
 
-## Overview
+## Обзор
 
-CryptoCore is a comprehensive cryptographic library implemented in Python, designed with both educational clarity and practical utility in mind. The library provides implementations of essential cryptographic algorithms while maintaining strict compatibility with industry standards like NIST specifications and OpenSSL.
+CryptoCore — это комплексная криптографическая библиотека, реализованная на Python, разработанная с учетом как образовательной ясности, так и практической полезности. Библиотека предоставляет реализации основных криптографических алгоритмов при сохранении строгой совместимости с отраслевыми стандартами, такими как спецификации NIST и OpenSSL.
 
-### Design Principles
-- **Educational Transparency**: Clean, readable code suitable for studying cryptographic implementations
-- **Standards Compliance**: Adherence to NIST, RFC, and FIPS specifications
-- **Security First**: Follows cryptographic best practices and secure coding patterns
-- **Interoperability**: Compatible with OpenSSL CLI for cross-validation
-- **Modular Architecture**: Independent, reusable components with clear interfaces
+### Принципы проектирования
+- **Образовательная прозрачность**: Чистый, читаемый код, подходящий для изучения криптографических реализаций
+- **Соответствие стандартам**: Соблюдение спецификаций NIST, RFC и FIPS
+- **Безопасность прежде всего**: Следование криптографическим рекомендациям и безопасным шаблонам программирования
+- **Совместимость**: Совместимость с CLI OpenSSL для перекрестной проверки
+- **Модульная архитектура**: Независимые, повторно используемые компоненты с четкими интерфейсами
 
-### Supported Algorithms
-| Category | Algorithms | Standards |
+### Поддерживаемые алгоритмы
+| Категория | Алгоритмы | Стандарты |
 |----------|------------|-----------|
-| Block Cipher | AES-128 | FIPS 197 |
-| Encryption Modes | ECB, CBC, CFB, OFB, CTR, GCM | NIST SP 800-38A, 800-38D |
-| Hash Functions | SHA-256, SHA3-256 | FIPS 180-4, FIPS 202 |
-| MAC Algorithms | HMAC-SHA256 | RFC 2104, RFC 4231 |
-| Key Derivation | PBKDF2-HMAC-SHA256, HKDF | RFC 2898, RFC 5869 |
-| Random Generation | CSPRNG (via OS) | NIST SP 800-90A |
+| Блочный шифр | AES-128 | FIPS 197 |
+| Режимы шифрования | ECB, CBC, CFB, OFB, CTR, GCM | NIST SP 800-38A, 800-38D |
+| Хэш-функции | SHA-256, SHA3-256 | FIPS 180-4, FIPS 202 |
+| MAC-алгоритмы | HMAC-SHA256 | RFC 2104, RFC 4231 |
+| Генерация ключей | PBKDF2-HMAC-SHA256, HKDF | RFC 2898, RFC 5869 |
+| Генерация случайных чисел | CSPRNG (через ОС) | NIST SP 800-90A |
 
-## Installation and Setup
+## Установка и настройка
 
-### Prerequisites
-- Python 3.8 or higher
-- pip package manager
+### Предварительные требования
+- Python 3.8 или выше
+- Менеджер пакетов pip
 
-### Installation Methods
+### Методы установки
 
-#### From Source Code
+#### Из исходного кода
 ```bash
-# Clone repository
+# Клонировать репозиторий
 git clone https://github.com/yourusername/CryptoCore.git
 cd CryptoCore
 
-# Install in development mode
+# Установить в режиме разработки
 pip install -e .
 
-# Verify installation
+# Проверить установку
 cryptocore --version
 ```
 
-#### Direct Package Installation
+#### Прямая установка пакета
 ```bash
-# Install from local source
+# Установить из локального источника
 pip install path/to/CryptoCore
 
-# Or when published to PyPI
+# Или при публикации в PyPI
 pip install cryptocore
 ```
 
-### Dependencies
-- **Required**: `pycryptodome>=3.20.0` (for AES core operations)
-- **Optional**: `pytest` (for running test suite)
+### Зависимости
+- **Обязательные**: `pycryptodome>=3.20.0` (для основных операций AES)
+- **Опциональные**: `pytest` (для запуска набора тестов)
 
-### Verification
+### Проверка
 ```python
 import cryptocore
 print(f"CryptoCore version: {cryptocore.__version__}")
 
-# Test basic functionality
+# Проверить базовую функциональность
 from cryptocore.utils.csprng import generate_random_key
 key = generate_random_key()
 print(f"Generated random key: {key.hex()}")
@@ -89,205 +88,205 @@ print(f"Generated random key: {key.hex()}")
 
 ---
 
-## Module Reference
+## Справочник модулей
 
-### 3.1. Modes of Operation
-*Location: `cryptocore.modes`*
+### 3.1. Режимы работы
+*Расположение: `cryptocore.modes`*
 
-This module implements various modes of operation for AES-128 encryption. Each mode provides different security properties and performance characteristics.
+Этот модуль реализует различные режимы работы для шифрования AES-128. Каждый режим предоставляет различные свойства безопасности и характеристики производительности.
 
-#### ECB Mode (Electronic Codebook)
+#### Режим ECB (Electronic Codebook)
 ```python
 from cryptocore.modes.ecb import encrypt_ecb, decrypt_ecb
 ```
 
 **`encrypt_ecb(plaintext: bytes, key: bytes) -> bytes`**
-Encrypts plaintext using AES-128 in ECB mode with PKCS#7 padding.
+Шифрует открытый текст с использованием AES-128 в режиме ECB с дополнением PKCS#7.
 
-| Parameter | Type | Description | Constraints |
+| Параметр | Тип | Описание | Ограничения |
 |-----------|------|-------------|-------------|
-| `plaintext` | `bytes` | Data to encrypt | Any length |
-| `key` | `bytes` | AES-128 encryption key | Exactly 16 bytes |
+| `plaintext` | `bytes` | Данные для шифрования | Любая длина |
+| `key` | `bytes` | Ключ шифрования AES-128 | Ровно 16 байт |
 
-**Returns:** `bytes` - Encrypted ciphertext (padded to 16-byte boundary)
+**Возвращает:** `bytes` - Зашифрованный шифротекст (дополненный до границы 16 байт)
 
-**Raises:**
-- `ValueError`: If key length is not 16 bytes
+**Вызывает:**
+- `ValueError`: Если длина ключа не равна 16 байтам
 
-**Example:**
+**Пример:**
 ```python
 key = bytes.fromhex("00112233445566778899aabbccddeeff")
 plaintext = b"Hello, CryptoCore!"
 ciphertext = encrypt_ecb(plaintext, key)
-# ciphertext is 32 bytes (padded to nearest 16-byte boundary)
+# ciphertext составляет 32 байта (дополнено до ближайшей границы 16 байт)
 ```
 
 **`decrypt_ecb(ciphertext: bytes, key: bytes) -> bytes`**
-Decrypts ciphertext using AES-128 in ECB mode and removes PKCS#7 padding.
+Дешифрует шифротекст с использованием AES-128 в режиме ECB и удаляет дополнение PKCS#7.
 
-| Parameter | Type | Description | Constraints |
+| Параметр | Тип | Описание | Ограничения |
 |-----------|------|-------------|-------------|
-| `ciphertext` | `bytes` | Encrypted data | Multiple of 16 bytes |
-| `key` | `bytes` | AES-128 encryption key | Exactly 16 bytes |
+| `ciphertext` | `bytes` | Зашифрованные данные | Кратно 16 байтам |
+| `key` | `bytes` | Ключ шифрования AES-128 | Ровно 16 байт |
 
-**Returns:** `bytes` - Decrypted plaintext (padding removed)
+**Возвращает:** `bytes` - Дешифрованный открытый текст (дополнение удалено)
 
-**Raises:**
-- `ValueError`: If key length ≠ 16 bytes or ciphertext length invalid
-- `ValueError`: If PKCS#7 padding is invalid
+**Вызывает:**
+- `ValueError`: Если длина ключа ≠ 16 байт или неверная длина шифротекста
+- `ValueError`: Если дополнение PKCS#7 недействительно
 
-**Security Note:** ECB mode is not recommended for encrypting multiple blocks of similar data, as identical plaintext blocks produce identical ciphertext blocks. Use only for single-block encryption or educational purposes.
+**Примечание по безопасности:** Режим ECB не рекомендуется для шифрования нескольких блоков похожих данных, так как идентичные блоки открытого текста производят идентичные блоки шифротекста. Используйте только для одноблочного шифрования или в образовательных целях.
 
-#### CBC Mode (Cipher Block Chaining)
+#### Режим CBC (Cipher Block Chaining)
 ```python
 from cryptocore.modes.cbc import encrypt_cbc, decrypt_cbc
 ```
 
 **`encrypt_cbc(plaintext: bytes, key: bytes, iv: bytes) -> bytes`**
-Encrypts plaintext using AES-128 in CBC mode.
+Шифрует открытый текст с использованием AES-128 в режиме CBC.
 
-| Parameter | Type | Description | Constraints |
+| Параметр | Тип | Описание | Ограничения |
 |-----------|------|-------------|-------------|
-| `plaintext` | `bytes` | Data to encrypt | Any length |
-| `key` | `bytes` | AES-128 encryption key | Exactly 16 bytes |
-| `iv` | `bytes` | Initialization Vector | Exactly 16 bytes |
+| `plaintext` | `bytes` | Данные для шифрования | Любая длина |
+| `key` | `bytes` | Ключ шифрования AES-128 | Ровно 16 байт |
+| `iv` | `bytes` | Вектор инициализации | Ровно 16 байт |
 
-**Returns:** `bytes` - Encrypted ciphertext
+**Возвращает:** `bytes` - Зашифрованный шифротекст
 
-**Raises:**
-- `ValueError`: If key or IV length is incorrect
+**Вызывает:**
+- `ValueError`: Если длина ключа или IV неверна
 
-**Properties:**
-- Uses PKCS#7 padding
-- IV should be cryptographically random
-- Chaining prevents identical plaintext blocks from producing identical ciphertext
+**Свойства:**
+- Использует дополнение PKCS#7
+- IV должен быть криптографически случайным
+- Сцепление предотвращает создание идентичных шифротекстов из идентичных блоков открытого текста
 
 **`decrypt_cbc(ciphertext: bytes, key: bytes, iv: bytes) -> bytes`**
-Decrypts ciphertext using AES-128 in CBC mode.
+Дешифрует шифротекст с использованием AES-128 в режиме CBC.
 
-| Parameter | Type | Description | Constraints |
+| Параметр | Тип | Описание | Ограничения |
 |-----------|------|-------------|-------------|
-| `ciphertext` | `bytes` | Encrypted data | Multiple of 16 bytes |
-| `key` | `bytes` | AES-128 encryption key | Exactly 16 bytes |
-| `iv` | `bytes` | Initialization Vector | Exactly 16 bytes |
+| `ciphertext` | `bytes` | Зашифрованные данные | Кратно 16 байтам |
+| `key` | `bytes` | Ключ шифрования AES-128 | Ровно 16 байт |
+| `iv` | `bytes` | Вектор инициализации | Ровно 16 байт |
 
-**Returns:** `bytes` - Decrypted plaintext (padding automatically removed)
+**Возвращает:** `bytes` - Дешифрованный открытый текст (дополнение автоматически удалено)
 
-**Important:** The same IV used for encryption must be used for decryption.
+**Важно:** Тот же IV, который использовался для шифрования, должен использоваться для дешифрования.
 
-#### CFB Mode (Cipher Feedback)
+#### Режим CFB (Cipher Feedback)
 ```python
 from cryptocore.modes.cfb import encrypt_cfb, decrypt_cfb
 ```
 
 **`encrypt_cfb(plaintext: bytes, key: bytes, iv: bytes) -> bytes`**
-Encrypts plaintext using AES-128 in CFB mode.
+Шифрует открытый текст с использованием AES-128 в режиме CFB.
 
 **`decrypt_cfb(ciphertext: bytes, key: bytes, iv: bytes) -> bytes`**
-Decrypts ciphertext using AES-128 in CFB mode.
+Дешифрует шифротекст с использованием AES-128 в режиме CFB.
 
-| Parameter | Constraints |
+| Параметр | Ограничения |
 |-----------|-------------|
-| `key`, `iv` | Exactly 16 bytes each |
+| `key`, `iv` | Ровно 16 байт каждый |
 
-**Features:**
-- Self-synchronizing stream cipher
-- No padding required
-- Can process data smaller than block size
+**Особенности:**
+- Самосинхронизирующийся поточный шифр
+- Не требует дополнения
+- Может обрабатывать данные меньшего размера, чем размер блока
 
-**Security Note:** Never reuse IV with the same key.
+**Примечание по безопасности:** Никогда не используйте повторно IV с тем же ключом.
 
-#### OFB Mode (Output Feedback)
+#### Режим OFB (Output Feedback)
 ```python
 from cryptocore.modes.ofb import encrypt_ofb, decrypt_ofb
 ```
 
 **`encrypt_ofb(plaintext: bytes, key: bytes, iv: bytes) -> bytes`**
-Encrypts plaintext using AES-128 in OFB mode.
+Шифрует открытый текст с использованием AES-128 в режиме OFB.
 
 **`decrypt_ofb(ciphertext: bytes, key: bytes, iv: bytes) -> bytes`**
-Decrypts ciphertext using AES-128 in OFB mode (identical to encryption).
+Дешифрует шифротекст с использованием AES-128 в режиме OFB (идентично шифрованию).
 
-**Properties:**
-- Synchronous stream cipher
-- Keystream generation independent of plaintext/ciphertext
-- No error propagation
+**Свойства:**
+- Синхронный поточный шифр
+- Генерация потока ключей независима от открытого текста/шифротекста
+- Нет распространения ошибок
 
-#### CTR Mode (Counter)
+#### Режим CTR (Counter)
 ```python
 from cryptocore.modes.ctr import encrypt_ctr, decrypt_ctr
 ```
 
 **`encrypt_ctr(plaintext: bytes, key: bytes, iv: bytes) -> bytes`**
-Encrypts plaintext using AES-128 in CTR mode.
+Шифрует открытый текст с использованием AES-128 в режиме CTR.
 
 **`decrypt_ctr(ciphertext: bytes, key: bytes, iv: bytes) -> bytes`**
-Decrypts ciphertext using AES-128 in CTR mode (identical to encryption).
+Дешифрует шифротекст с использованием AES-128 в режиме CTR (идентично шифрованию).
 
-| Parameter | Description |
+| Параметр | Описание |
 |-----------|-------------|
-| `iv` | 16 bytes (8-byte nonce + 8-byte counter starting at 0) |
+| `iv` | 16 байт (8-байтовый нонс + 8-байтовый счетчик, начинающийся с 0) |
 
-**Advantages:**
-- Parallelizable encryption/decryption
-- No padding required
-- Random access to ciphertext
+**Преимущества:**
+- Параллелизуемое шифрование/дешифрование
+- Не требует дополнения
+- Произвольный доступ к шифротексту
 
-#### GCM Mode (Galois/Counter Mode)
+#### Режим GCM (Galois/Counter Mode)
 ```python
 from cryptocore.modes.gcm import encrypt_gcm, decrypt_gcm, GCM, AuthenticationError
 ```
 
-**Class: `GCM(key: bytes, nonce: Optional[bytes] = None)`**
-Creates a GCM context for authenticated encryption.
+**Класс: `GCM(key: bytes, nonce: Optional[bytes] = None)`**
+Создает контекст GCM для аутентифицированного шифрования.
 
-| Parameter | Description | Default |
+| Параметр | Описание | По умолчанию |
 |-----------|-------------|---------|
-| `key` | AES key (16, 24, or 32 bytes) | Required |
-| `nonce` | Nonce/IV (12 bytes recommended) | Randomly generated |
+| `key` | Ключ AES (16, 24 или 32 байта) | Обязательно |
+| `nonce` | Нонс/IV (рекомендуется 12 байт) | Генерируется случайно |
 
-**Methods:**
+**Методы:**
 
 **`encrypt(plaintext: bytes, aad: bytes = b"") -> Tuple[bytes, bytes, bytes]`**
-Encrypts plaintext with authentication.
+Шифрует открытый текст с аутентификацией.
 
-| Parameter | Description |
+| Параметр | Описание |
 |-----------|-------------|
-| `plaintext` | Data to encrypt |
-| `aad` | Additional Authenticated Data (not encrypted) |
+| `plaintext` | Данные для шифрования |
+| `aad` | Дополнительные аутентифицированные данные (не шифруются) |
 
-**Returns:** `(nonce, ciphertext, tag)` where:
-- `nonce`: The nonce used (12 bytes)
-- `ciphertext`: Encrypted data
-- `tag`: 16-byte authentication tag
+**Возвращает:** `(nonce, ciphertext, tag)` где:
+- `nonce`: Использованный нонс (12 байт)
+- `ciphertext`: Зашифрованные данные
+- `tag`: 16-байтовый тег аутентификации
 
 **`decrypt(ciphertext: bytes, tag: bytes, nonce: bytes, aad: bytes = b"") -> bytes`**
-Decrypts ciphertext with authentication verification.
+Дешифрует шифротекст с проверкой аутентификации.
 
-| Parameter | Description | Constraints |
+| Параметр | Описание | Ограничения |
 |-----------|-------------|-------------|
-| `ciphertext` | Encrypted data | Any length |
-| `tag` | Authentication tag | Exactly 16 bytes |
-| `nonce` | Nonce used during encryption | Exactly 12 bytes |
-| `aad` | Additional Authenticated Data | Must match encryption |
+| `ciphertext` | Зашифрованные данные | Любая длина |
+| `tag` | Тег аутентификации | Ровно 16 байт |
+| `nonce` | Нонс, использованный при шифровании | Ровно 12 байт |
+| `aad` | Дополнительные аутентифицированные данные | Должен соответствовать шифрованию |
 
-**Returns:** `bytes` - Decrypted plaintext
+**Возвращает:** `bytes` - Дешифрованный открытый текст
 
-**Raises:**
-- `AuthenticationError`: If tag verification fails
-- `ValueError`: If parameter lengths are invalid
+**Вызывает:**
+- `AuthenticationError`: Если проверка тега не удалась
+- `ValueError`: Если длины параметров недействительны
 
-**Convenience Functions:**
+**Удобные функции:**
 
 **`encrypt_gcm(plaintext: bytes, key: bytes, nonce: Optional[bytes] = None, aad: bytes = b"") -> Tuple[bytes, bytes, bytes]`**
-One-shot GCM encryption.
+Одноразовое шифрование GCM.
 
 **`decrypt_gcm(ciphertext: bytes, tag: bytes, nonce: bytes, key: bytes, aad: bytes = b"") -> bytes`**
-One-shot GCM decryption with verification.
+Одноразовое дешифрование GCM с проверкой.
 
-**Security Critical:** Never reuse a nonce with the same key. Nonce reuse completely breaks GCM security.
+**Критично для безопасности:** Никогда не используйте нонс повторно с тем же ключом. Повторное использование нонса полностью нарушает безопасность GCM.
 
-#### Encrypt-then-MAC
+#### Шифрование-затем-MAC
 ```python
 from cryptocore.modes.encrypt_then_mac import (
     EncryptThenMAC, 
@@ -298,84 +297,84 @@ from cryptocore.modes.encrypt_then_mac import (
 )
 ```
 
-**Class: `EncryptThenMAC(master_key: bytes, mode: str = 'cbc')`**
-Implements authenticated encryption using the Encrypt-then-MAC paradigm.
+**Класс: `EncryptThenMAC(master_key: bytes, mode: str = 'cbc')`**
+Реализует аутентифицированное шифрование с использованием парадигмы Шифрование-затем-MAC.
 
-| Parameter | Description | Valid Values |
+| Параметр | Описание | Допустимые значения |
 |-----------|-------------|--------------|
-| `master_key` | Master key for derivation | ≥ 32 bytes recommended |
-| `mode` | Underlying encryption mode | 'cbc', 'ctr', 'cfb', 'ofb', 'ecb' |
+| `master_key` | Мастер-ключ для генерации | ≥ 32 байт рекомендуется |
+| `mode` | Базовый режим шифрования | 'cbc', 'ctr', 'cfb', 'ofb', 'ecb' |
 
-**Key Derivation:** Derives separate encryption and MAC keys from master key using HMAC-based KDF.
+**Генерация ключей:** Генерирует отдельные ключи шифрования и MAC из мастер-ключа с использованием HMAC-основанного KDF.
 
-**Methods:**
+**Методы:**
 
 **`encrypt(plaintext: bytes, iv: Optional[bytes] = None, aad: bytes = b"") -> Tuple[bytes, bytes, bytes]`**
-Encrypts and authenticates plaintext.
+Шифрует и аутентифицирует открытый текст.
 
 **`decrypt(ciphertext: bytes, tag: bytes, iv: bytes, aad: bytes = b"") -> bytes`**
-Decrypts and verifies authentication.
+Дешифрует и проверяет аутентификацию.
 
-**File Operations:**
+**Операции с файлами:**
 
 **`encrypt_to_bytes(plaintext: bytes, master_key: bytes, mode: str = 'cbc', aad: bytes = b"", iv: Optional[bytes] = None) -> bytes`**
-Encrypts and returns as single byte string (format: IV_LENGTH || IV || Ciphertext || Tag).
+Шифрует и возвращает в виде единой строки байтов (формат: ДЛИНА_IV || IV || Шифротекст || Тег).
 
 **`decrypt_from_bytes(data: bytes, master_key: bytes, mode: str = 'cbc', aad: bytes = b"") -> bytes`**
-Decrypts from combined byte string.
+Дешифрует из объединенной строки байтов.
 
 **`encrypt_file(input_path: str, output_path: str, master_key: bytes, mode: str = 'cbc', aad: bytes = b"", iv: Optional[bytes] = None) -> bytes`**
-Encrypts file with authenticated encryption.
+Шифрует файл с аутентифицированным шифрованием.
 
 **`decrypt_file(input_path: str, output_path: str, master_key: bytes, mode: str = 'cbc', aad: bytes = b"") -> None`**
-Decrypts file with authentication verification.
+Дешифрует файл с проверкой аутентификации.
 
-### 3.2. Hash Functions
-*Location: `cryptocore.hash`*
+### 3.2. Хэш-функции
+*Расположение: `cryptocore.hash`*
 
-#### SHA-256 Implementation
+#### Реализация SHA-256
 ```python
 from cryptocore.hash.sha256 import SHA256
 ```
 
-**Class: `SHA256()`**
-Implements SHA-256 hash algorithm per FIPS 180-4.
+**Класс: `SHA256()`**
+Реализует алгоритм хэширования SHA-256 в соответствии с FIPS 180-4.
 
-**Methods:**
+**Методы:**
 
 **`update(data: bytes) -> None`**
-Updates the hash with additional data.
+Обновляет хэш дополнительными данными.
 
 **`digest() -> bytes`**
-Returns the hash digest as 32 bytes.
+Возвращает хэш-дайджест в виде 32 байт.
 
 **`hexdigest() -> str`**
-Returns the hash digest as 64-character hexadecimal string.
+Возвращает хэш-дайджест в виде 64-символьной шестнадцатеричной строки.
 
 **`reset() -> None`**
-Resets hash computation to initial state.
+Сбрасывает вычисление хэша в начальное состояние.
 
-**Class Methods:**
+**Методы класса:**
 
 **`SHA256.hash(data: bytes) -> bytes`**
-Static method for one-shot hashing.
+Статический метод для одноразового хэширования.
 
 **`SHA256.hash_hex(data: bytes) -> str`**
-Static method for one-shot hashing returning hex string.
+Статический метод для одноразового хэширования, возвращающий шестнадцатеричную строку.
 
-**Example:**
+**Пример:**
 ```python
-# Streaming interface
+# Потоковый интерфейс
 hasher = SHA256()
 hasher.update(b"Hello, ")
 hasher.update(b"CryptoCore!")
-hash_bytes = hasher.digest()  # 32 bytes
+hash_bytes = hasher.digest()  # 32 байта
 
-# One-shot interface
+# Одноразовый интерфейс
 hash_result = SHA256.hash(b"Hello, CryptoCore!")
 hash_hex = SHA256.hash_hex(b"Hello, CryptoCore!")
 
-# File hashing
+# Хэширование файлов
 hasher = SHA256()
 with open("large_file.bin", "rb") as f:
     while chunk := f.read(8192):
@@ -383,91 +382,91 @@ with open("large_file.bin", "rb") as f:
 file_hash = hasher.hexdigest()
 ```
 
-#### SHA3-256 Implementation
+#### Реализация SHA3-256
 ```python
 from cryptocore.hash.sha3_256 import SHA3_256
 ```
 
-**Class: `SHA3_256()`**
-Implements SHA3-256 hash algorithm per FIPS 202 using Python's built-in `hashlib`.
+**Класс: `SHA3_256()`**
+Реализует алгоритм хэширования SHA3-256 в соответствии с FIPS 202 с использованием встроенного `hashlib` Python.
 
-**Interface:** Identical to `SHA256` class with same methods.
+**Интерфейс:** Идентичен классу `SHA256` с теми же методами.
 
-**Note:** Uses Python's `hashlib.sha3_256` for production-grade implementation while maintaining consistent API.
+**Примечание:** Использует `hashlib.sha3_256` Python для реализации производственного уровня при сохранении согласованного API.
 
-### 3.3. Message Authentication Codes
-*Location: `cryptocore.mac`*
+### 3.3. Коды аутентификации сообщений
+*Расположение: `cryptocore.mac`*
 
 #### HMAC-SHA256
 ```python
 from cryptocore.mac.hmac import HMAC, compute_hmac, compute_hmac_hex, new
 ```
 
-**Class: `HMAC(key: bytes)`**
-Implements HMAC with SHA-256 as per RFC 2104.
+**Класс: `HMAC(key: bytes)`**
+Реализует HMAC с SHA-256 в соответствии с RFC 2104.
 
-| Parameter | Description | Processing |
+| Параметр | Описание | Обработка |
 |-----------|-------------|------------|
-| `key` | HMAC key | If >64 bytes: hashed; if <64 bytes: zero-padded |
+| `key` | Ключ HMAC | Если >64 байта: хэшируется; если <64 байта: дополняется нулями |
 
-**Methods:**
+**Методы:**
 
 **`compute(message: bytes) -> bytes`**
-Computes HMAC-SHA256 for message.
+Вычисляет HMAC-SHA256 для сообщения.
 
-**Returns:** `bytes` - 32-byte HMAC value
+**Возвращает:** `bytes` - 32-байтовое значение HMAC
 
 **`compute_hex(message: bytes) -> str`**
-Computes HMAC-SHA256, returns hex string.
+Вычисляет HMAC-SHA256, возвращает шестнадцатеричную строку.
 
-**Returns:** `str` - 64-character hexadecimal string
+**Возвращает:** `str` - 64-символьная шестнадцатеричная строка
 
 **`verify(message: bytes, hmac_to_check: Union[bytes, str]) -> bool`**
-Verifies HMAC for message.
+Проверяет HMAC для сообщения.
 
-| Parameter | Description |
+| Параметр | Описание |
 |-----------|-------------|
-| `hmac_to_check` | Expected HMAC as bytes or hex string |
+| `hmac_to_check` | Ожидаемый HMAC в виде байтов или шестнадцатеричной строки |
 
-**Returns:** `bool` - True if HMAC matches
+**Возвращает:** `bool` - True, если HMAC совпадает
 
 **`update_compute(message_chunks: Iterable[bytes]) -> bytes`**
-Computes HMAC from sequence of chunks (for large files).
+Вычисляет HMAC из последовательности фрагментов (для больших файлов).
 
-**Class Methods:**
+**Методы класса:**
 
 **`HMAC.compute_hmac(key: bytes, message: bytes) -> bytes`**
-Static method for one-shot HMAC computation.
+Статический метод для одноразового вычисления HMAC.
 
 **`HMAC.compute_hmac_hex(key: bytes, message: bytes) -> str`**
-Static method for one-shot HMAC computation returning hex.
+Статический метод для одноразового вычисления HMAC, возвращающий шестнадцатеричную строку.
 
-**Module Functions:**
+**Функции модуля:**
 
 **`new(key: bytes) -> HMAC`**
-Factory function creating HMAC instance.
+Фабричная функция, создающая экземпляр HMAC.
 
 **`compute_hmac(key: bytes, message: bytes) -> bytes`**
-Compute HMAC directly.
+Вычислить HMAC напрямую.
 
 **`compute_hmac_hex(key: bytes, message: bytes) -> str`**
-Compute HMAC directly returning hex.
+Вычислить HMAC напрямую, возвращая шестнадцатеричную строку.
 
-**Example:**
+**Пример:**
 ```python
 key = bytes.fromhex("00112233445566778899aabbccddeeff")
 message = b"Important transaction data"
 
-# Class-based
+# На основе класса
 hmac = HMAC(key)
 mac = hmac.compute(message)
 is_valid = hmac.verify(message, mac)
 
-# One-shot
+# Одноразовый
 mac = HMAC.compute_hmac(key, message)
 mac_hex = HMAC.compute_hmac_hex(key, message)
 
-# File authentication
+# Аутентификация файлов
 hmac = HMAC(key)
 with open("document.pdf", "rb") as f:
     chunks = []
@@ -476,8 +475,8 @@ with open("document.pdf", "rb") as f:
 file_mac = hmac.update_compute(chunks)
 ```
 
-### 3.4. Key Derivation Functions
-*Location: `cryptocore.kdf`*
+### 3.4. Функции генерации ключей
+*Расположение: `cryptocore.kdf`*
 
 #### PBKDF2-HMAC-SHA256
 ```python
@@ -485,38 +484,38 @@ from cryptocore.kdf.pbkdf2 import pbkdf2_hmac_sha256, derive_from_password
 ```
 
 **`pbkdf2_hmac_sha256(password: Union[str, bytes], salt: Union[str, bytes], iterations: int, dklen: int) -> bytes`**
-Derives key from password using PBKDF2 with HMAC-SHA256 per RFC 2898.
+Генерирует ключ из пароля с использованием PBKDF2 с HMAC-SHA256 в соответствии с RFC 2898.
 
-| Parameter | Type | Description | Constraints |
+| Параметр | Тип | Описание | Ограничения |
 |-----------|------|-------------|-------------|
-| `password` | `Union[str, bytes]` | Password | Non-empty |
-| `salt` | `Union[str, bytes]` | Salt value | Non-empty |
-| `iterations` | `int` | Iteration count | ≥ 1 |
-| `dklen` | `int` | Derived key length | ≥ 1 |
+| `password` | `Union[str, bytes]` | Пароль | Не пустой |
+| `salt` | `Union[str, bytes]` | Значение соли | Не пустое |
+| `iterations` | `int` | Количество итераций | ≥ 1 |
+| `dklen` | `int` | Длина генерируемого ключа | ≥ 1 |
 
-**Returns:** `bytes` - Derived key of length `dklen`
+**Возвращает:** `bytes` - Генерируемый ключ длины `dklen`
 
-**Raises:**
-- `ValueError`: If parameters are invalid
+**Вызывает:**
+- `ValueError`: Если параметры недействительны
 
-**Salt Processing:**
-- String input: Treated as hex if valid hex, otherwise UTF-8 encoded
-- Hex strings: Can include `0x` prefix and spaces (automatically cleaned)
+**Обработка соли:**
+- Строковый ввод: Интерпретируется как hex, если допустимый hex, в противном случае кодируется в UTF-8
+- Hex-строки: Могут содержать префикс `0x` и пробелы (автоматически очищаются)
 
 **`derive_from_password(password: str, salt_hex: str = None, iterations: int = 100000, keylen: int = 32) -> tuple[bytes, bytes]`**
-Convenience function for password-based key derivation.
+Удобная функция для генерации ключей на основе пароля.
 
-| Parameter | Default | Description |
+| Параметр | По умолчанию | Описание |
 |-----------|---------|-------------|
-| `salt_hex` | `None` | If None, generates random 16-byte salt |
-| `iterations` | `100000` | Recommended: ≥ 100,000 |
-| `keylen` | `32` | Derived key length in bytes |
+| `salt_hex` | `None` | Если None, генерирует случайную 16-байтовую соль |
+| `iterations` | `100000` | Рекомендуется: ≥ 100,000 |
+| `keylen` | `32` | Длина генерируемого ключа в байтах |
 
-**Returns:** `(derived_key, salt_used)`
+**Возвращает:** `(derived_key, salt_used)`
 
-**Example:**
+**Пример:**
 ```python
-# With specified salt
+# С указанной солью
 derived_key = pbkdf2_hmac_sha256(
     password="MySecurePassword!123",
     salt="a1b2c3d4e5f601234567890123456789",
@@ -524,7 +523,7 @@ derived_key = pbkdf2_hmac_sha256(
     dklen=32
 )
 
-# With auto-generated salt
+# С автоматически сгенерированной солью
 derived_key, salt = derive_from_password(
     password="AnotherPassword",
     iterations=200000,
@@ -540,37 +539,37 @@ from cryptocore.kdf.hkdf import derive_key, derive_key_hierarchy
 ```
 
 **`derive_key(master_key: bytes, context: Union[str, bytes], length: int = 32) -> bytes`**
-Derives key from master key using HMAC-based KDF.
+Генерирует ключ из мастер-ключа с использованием HMAC-основанного KDF.
 
-| Parameter | Description | Constraints |
+| Параметр | Описание | Ограничения |
 |-----------|-------------|-------------|
-| `master_key` | Master key | ≥ 16 bytes recommended |
-| `context` | Context for domain separation | String or bytes |
-| `length` | Desired key length | ≥ 1 |
+| `master_key` | Мастер-ключ | ≥ 16 байт рекомендуется |
+| `context` | Контекст для разделения доменов | Строка или байты |
+| `length` | Желаемая длина ключа | ≥ 1 |
 
-**Returns:** `bytes` - Derived key
+**Возвращает:** `bytes` - Генерируемый ключ
 
-**Algorithm:** `HMAC(master_key, context || counter)` iterated until desired length
+**Алгоритм:** `HMAC(master_key, context || counter)` итеративно до достижения желаемой длины
 
 **`derive_key_hierarchy(master_key: bytes, contexts: list[str], key_length: int = 32) -> dict[str, bytes]`**
-Derives multiple keys for different contexts.
+Генерирует несколько ключей для разных контекстов.
 
-| Parameter | Description |
+| Параметр | Описание |
 |-----------|-------------|
-| `contexts` | List of context strings |
-| `key_length` | Length for each derived key |
+| `contexts` | Список строк контекста |
+| `key_length` | Длина для каждого генерируемого ключа |
 
-**Returns:** `dict[str, bytes]` - Mapping from context to derived key
+**Возвращает:** `dict[str, bytes]` - Отображение из контекста в генерируемый ключ
 
-**Example:**
+**Пример:**
 ```python
 master_key = bytes.fromhex("00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff")
 
-# Single key derivation
+# Генерация одного ключа
 enc_key = derive_key(master_key, "encryption", 16)
 mac_key = derive_key(master_key, "authentication", 32)
 
-# Multiple keys
+# Несколько ключей
 keys = derive_key_hierarchy(
     master_key=master_key,
     contexts=["encryption", "mac", "iv_generation"],
@@ -579,10 +578,10 @@ keys = derive_key_hierarchy(
 # keys = {"encryption": ..., "mac": ..., "iv_generation": ...}
 ```
 
-### 3.5. Utility Modules
-*Location: `cryptocore.utils`*
+### 3.5. Вспомогательные модули
+*Расположение: `cryptocore.utils`*
 
-#### Cryptographically Secure Random Number Generation
+#### Криптографически стойкая генерация случайных чисел
 ```python
 from cryptocore.utils.csprng import (
     generate_random_bytes,
@@ -592,69 +591,69 @@ from cryptocore.utils.csprng import (
 ```
 
 **`generate_random_bytes(num_bytes: int) -> bytes`**
-Generates cryptographically secure random bytes using OS RNG.
+Генерирует криптографически стойкие случайные байты с использованием RNG операционной системы.
 
-| Parameter | Constraints |
+| Параметр | Ограничения |
 |-----------|-------------|
 | `num_bytes` | ≥ 1 |
 
-**Returns:** `bytes` - Random bytes
+**Возвращает:** `bytes` - Случайные байты
 
-**Implementation:** Uses `os.urandom()` (or equivalent on Windows)
+**Реализация:** Использует `os.urandom()` (или эквивалент на Windows)
 
-**Raises:**
-- `ValueError`: If `num_bytes ≤ 0`
-- `OSError`: If system RNG fails
+**Вызывает:**
+- `ValueError`: Если `num_bytes ≤ 0`
+- `OSError`: Если системный RNG не сработал
 
 **`generate_random_key() -> bytes`**
-Generates random 16-byte AES-128 key.
+Генерирует случайный 16-байтовый ключ AES-128.
 
-**Returns:** `bytes` - 16 random bytes
+**Возвращает:** `bytes` - 16 случайных байт
 
 **`generate_random_iv() -> bytes`**
-Generates random 16-byte initialization vector.
+Генерирует случайный 16-байтовый вектор инициализации.
 
-**Returns:** `bytes` - 16 random bytes
+**Возвращает:** `bytes` - 16 случайных байт
 
-**Example:**
+**Пример:**
 ```python
-# Generate cryptographic materials
-key = generate_random_key()        # 16 bytes for AES-128
-iv = generate_random_iv()          # 16 bytes for IV
-nonce = generate_random_bytes(12)  # 12 bytes for GCM
-salt = generate_random_bytes(16)   # 16 bytes for PBKDF2
+# Генерировать криптографические материалы
+key = generate_random_key()        # 16 байт для AES-128
+iv = generate_random_iv()          # 16 байт для IV
+nonce = generate_random_bytes(12)  # 12 байт для GCM
+salt = generate_random_bytes(16)   # 16 байт для PBKDF2
 ```
 
-#### Padding Utilities
+#### Вспомогательные функции дополнения
 ```python
 from cryptocore.utils.padding import apply_padding, remove_padding
 ```
 
 **`apply_padding(data: bytes, block_size: int = 16) -> bytes`**
-Applies PKCS#7 padding to data.
+Применяет дополнение PKCS#7 к данным.
 
-| Parameter | Default | Description |
+| Параметр | По умолчанию | Описание |
 |-----------|---------|-------------|
-| `block_size` | `16` | Block size for padding |
+| `block_size` | `16` | Размер блока для дополнения |
 
-**Returns:** `bytes` - Padded data (length = multiple of `block_size`)
+**Возвращает:** `bytes` - Дополненные данные (длина = кратна `block_size`)
 
 **`remove_padding(padded_data: bytes, block_size: int = 16) -> bytes`**
-Removes PKCS#7 padding from data.
+Удаляет дополнение PKCS#7 из данных.
 
-**Returns:** `bytes` - Original data without padding
+**Возвращает:** `bytes` - Исходные данные без дополнения
 
-**Raises:**
-- `ValueError`: If padding is invalid (wrong length or bytes)
+**Вызывает:**
+- `ValueError`: Если дополнение недействительно (неверная длина или байты)
 
-**Example:**
+**Пример:**
 ```python
 data = b"Hello"
-padded = apply_padding(data, 16)  # b'Hello\x0b\x0b...' (11 bytes padding)
+padded = apply_padding(data, 16)  # b'Hello\x0b\x0b...' (11 байт дополнения)
 original = remove_padding(padded, 16)  # b'Hello'
 ```
 
-#### File I/O Utilities
+#### Вспомогательные функции ввода/вывода файлов
 ```python
 from cryptocore.utils.file_io import (
     read_file,
@@ -668,62 +667,62 @@ from cryptocore.utils.file_io import (
 ```
 
 **`read_file(file_path: str) -> bytes`**
-Reads file as binary data.
+Читает файл как двоичные данные.
 
 **`write_file(file_path: str, data: bytes, overwrite: bool = False) -> None`**
-Writes binary data to file.
+Записывает двоичные данные в файл.
 
 **`read_file_with_iv(file_path: str) -> Tuple[bytes, bytes]`**
-Reads file with IV prepended (first 16 bytes).
+Читает файл с предшествующим IV (первые 16 байт).
 
 **`write_file_with_iv(file_path: str, iv: bytes, data: bytes, overwrite: bool = False) -> None`**
-Writes IV and data to file (IV prepended).
+Записывает IV и данные в файл (IV предшествует).
 
 **`read_gcm_file(file_path: str) -> Tuple[bytes, bytes, bytes]`**
-Reads GCM-formatted file (nonce + ciphertext + tag).
+Читает файл в формате GCM (нонс + шифротекст + тег).
 
-**Format:** 12-byte nonce | ciphertext | 16-byte tag
+**Формат:** 12-байтовый нонс | шифротекст | 16-байтовый тег
 
 **`write_gcm_file(file_path: str, nonce: bytes, ciphertext: bytes, tag: bytes, overwrite: bool = False) -> None`**
-Writes GCM-formatted file.
+Записывает файл в формате GCM.
 
 **`derive_output_filename(input_path: str, operation: str, algorithm: str, mode: str) -> str`**
-Derives output filename based on operation and mode.
+Определяет имя выходного файла на основе операции и режима.
 
-| Operation | Input | Output | Example |
+| Операция | Вход | Выход | Пример |
 |-----------|-------|--------|---------|
 | encrypt | file.txt | file.txt.enc | (GCM: file.txt.gcm) |
 | decrypt | file.txt.enc | file.dec.txt | |
 | hash | file.txt | (stdout) | |
 
-#### Hash Utilities
+#### Вспомогательные функции хэширования
 ```python
 from cryptocore.utils.hash_utils import HashCalculator
 ```
 
-**Class: `HashCalculator`**
-Utility class for calculating hashes of files and data.
+**Класс: `HashCalculator`**
+Вспомогательный класс для вычисления хэшей файлов и данных.
 
-**Class Methods:**
+**Методы класса:**
 
 **`hash_data(data: bytes, algorithm: str = 'sha256') -> bytes`**
-Hash data in memory.
+Хэшировать данные в памяти.
 
 **`hash_data_hex(data: bytes, algorithm: str = 'sha256') -> str`**
-Hash data, return hex string.
+Хэшировать данные, вернуть шестнадцатеричную строку.
 
 **`hash_file(file_path: str, algorithm: str = 'sha256', chunk_size: int = 8192) -> bytes`**
-Hash file using streaming.
+Хэшировать файл с использованием потоковой обработки.
 
 **`hash_file_hex(file_path: str, algorithm: str = 'sha256', chunk_size: int = 8192) -> str`**
-Hash file, return hex string.
+Хэшировать файл, вернуть шестнадцатеричную строку.
 
 **`verify_file_hash(file_path: str, expected_hash: Union[str, bytes], algorithm: str = 'sha256') -> bool`**
-Verify file hash against expected value.
+Проверить хэш файла по отношению к ожидаемому значению.
 
-**Supported Algorithms:** 'sha256', 'sha3-256'
+**Поддерживаемые алгоритмы:** 'sha256', 'sha3-256'
 
-#### Galois Field Arithmetic
+#### Арифметика поля Галуа
 ```python
 from cryptocore.utils.galois_field import (
     GaloisField,
@@ -733,70 +732,70 @@ from cryptocore.utils.galois_field import (
 )
 ```
 
-**Class: `GaloisField`**
-Implements arithmetic in GF(2^128) for GCM mode.
+**Класс: `GaloisField`**
+Реализует арифметику в GF(2^128) для режима GCM.
 
-**Static Methods:**
+**Статические методы:**
 
 **`multiply(x: Union[int, bytes, bytearray], y: Union[int, bytes, bytearray]) -> Union[int, bytes]`**
-Multiplies in GF(2^128).
+Умножает в GF(2^128).
 
 **`multiply_gcm(h_bytes: bytes, y_bytes: bytes) -> bytes`**
-Multiplication optimized for GCM (H in bit-reversed representation).
+Умножение, оптимизированное для GCM (H в представлении с обратным порядком битов).
 
 **`add(x: Union[int, bytes, bytearray], y: Union[int, bytes, bytearray]) -> Union[int, bytes]`**
-Addition in GF(2^128) (XOR).
+Сложение в GF(2^128) (XOR).
 
-**Module Functions:**
+**Функции модуля:**
 
 **`gf_multiply()`, `gf_multiply_gcm()`, `gf_add()`**
-Convenience functions for module-level access.
+Удобные функции для доступа на уровне модуля.
 
-#### NIST Test Tool
+#### Инструмент тестирования NIST
 ```python
 from cryptocore.utils.nist_tool import generate_nist_test_file
 ```
 
 **`generate_nist_test_file(output_path: str, size_mb: float = 10.0) -> None`**
-Generates random data file for NIST Statistical Test Suite.
+Генерирует файл со случайными данными для набора статистических тестов NIST.
 
-| Parameter | Default | Description |
+| Параметр | По умолчанию | Описание |
 |-----------|---------|-------------|
-| `size_mb` | `10.0` | File size in megabytes |
+| `size_mb` | `10.0` | Размер файла в мегабайтах |
 
-**CLI Access:** `cryptocore-nist output.bin --size 100.0`
+**Доступ через CLI:** `cryptocore-nist output.bin --size 100.0`
 
 ---
 
-## Command Line Interface
+## Интерфейс командной строки
 
-The `cryptocore` CLI provides unified access to all library functionality. It supports both legacy single-command syntax and modern subcommand syntax.
+Интерфейс командной строки `cryptocore` предоставляет унифицированный доступ ко всей функциональности библиотеки. Он поддерживает как устаревший синтаксис одной команды, так и современный синтаксис подкоманд.
 
-### Basic Syntax
+### Базовый синтаксис
 ```
 cryptocore <command> [options]
 ```
 
-### Commands Overview
+### Обзор команд
 
-#### `crypto` - Encryption and Decryption
-Encrypts or decrypts files using various AES modes.
+#### `crypto` - Шифрование и дешифрование
+Шифрует или дешифрует файлы с использованием различных режимов AES.
 
-**Basic Encryption:**
+**Базовое шифрование:**
 ```bash
 cryptocore crypto --algorithm aes --mode cbc --encrypt \
   --key 00112233445566778899aabbccddeeff \
   --input plain.txt --output encrypted.bin
 ```
 
-**With Auto-generated Key:**
+**С автоматически сгенерированным ключом:**
 ```bash
 cryptocore crypto --algorithm aes --mode cbc --encrypt \
   --input plain.txt
-# Key is generated and displayed
+# Ключ генерируется и отображается
 ```
 
-**GCM with AAD:**
+**GCM с AAD:**
 ```bash
 cryptocore crypto --algorithm aes --mode gcm --encrypt \
   --key 00112233445566778899aabbccddeeff \
@@ -804,75 +803,75 @@ cryptocore crypto --algorithm aes --mode gcm --encrypt \
   --input data.db --output data.db.gcm
 ```
 
-#### `dgst` - Hash and HMAC Computation
-Computes hashes or HMACs of files.
+#### `dgst` - Вычисление хэша и HMAC
+Вычисляет хэши или HMAC файлов.
 
-**Hash Computation:**
+**Вычисление хэша:**
 ```bash
 cryptocore dgst --algorithm sha256 --input document.pdf
-# Output: sha256-hash document.pdf
+# Вывод: sha256-hash document.pdf
 ```
 
-**HMAC Computation:**
+**Вычисление HMAC:**
 ```bash
 cryptocore dgst --algorithm sha256 --hmac \
   --key 00112233445566778899aabbccddeeff \
   --input sensitive.txt --output signature.hmac
 ```
 
-**HMAC Verification:**
+**Проверка HMAC:**
 ```bash
 cryptocore dgst --algorithm sha256 --hmac \
   --key 00112233445566778899aabbccddeeff \
   --input sensitive.txt --verify expected.hmac
-# Exit code 0 on success, 1 on failure
+# Код завершения 0 при успехе, 1 при неудаче
 ```
 
-#### `derive` - Key Derivation
-Derives keys from passwords.
+#### `derive` - Генерация ключей
+Генерирует ключи из паролей.
 
-**Basic Derivation:**
+**Базовая генерация:**
 ```bash
 cryptocore derive --password "MySecurePassword" \
   --salt a1b2c3d4e5f601234567890123456789 \
   --iterations 100000 --length 32
 ```
 
-**With Auto-generated Salt:**
+**С автоматически сгенерированной солью:**
 ```bash
 cryptocore derive --password "AnotherPassword" \
   --iterations 500000
 ```
 
-**Password from File:**
+**Пароль из файла:**
 ```bash
 cryptocore derive --password-file password.txt \
   --salt fixedappsalt --iterations 10000
 ```
 
-### Common Options
-| Option | Short | Description | Example |
+### Общие опции
+| Опция | Сокращение | Описание | Пример |
 |--------|-------|-------------|---------|
-| `--input` | `-i` | Input file | `--input data.txt` |
-| `--output` | `-o` | Output file | `--output result.bin` |
-| `--force` | `-f` | Overwrite existing | `--force` |
-| `--key` | `-k` | Key as hex | `--key 0011...eeff` |
-| `--iv` | | IV/nonce as hex | `--iv aabb...ccdd` |
-| `--aad` | | AAD for GCM | `--aad metadata` |
+| `--input` | `-i` | Входной файл | `--input data.txt` |
+| `--output` | `-o` | Выходной файл | `--output result.bin` |
+| `--force` | `-f` | Перезаписать существующий | `--force` |
+| `--key` | `-k` | Ключ в виде hex | `--key 0011...eeff` |
+| `--iv` | | IV/нонс в виде hex | `--iv aabb...ccdd` |
+| `--aad` | | AAD для GCM | `--aad metadata` |
 
-### Input/Output Handling
-- **Stdin/Stdout**: Use `-` for `--input` or omit `--output`
-- **File Naming**: Automatic derivation based on operation
-- **IV Handling**: Automatically prepended to ciphertext files
-- **Overwrite Protection**: By default, existing files are not overwritten
+### Обработка ввода/вывода
+- **Stdin/Stdout**: Используйте `-` для `--input` или опустите `--output`
+- **Именование файлов**: Автоматическое определение на основе операции
+- **Обработка IV**: Автоматически добавляется в начало файлов шифротекста
+- **Защита от перезаписи**: По умолчанию существующие файлы не перезаписываются
 
 ---
 
-## Error Handling and Exceptions
+## Обработка ошибок и исключения
 
-CryptoCore uses a consistent exception hierarchy for error reporting.
+CryptoCore использует согласованную иерархию исключений для сообщений об ошибках.
 
-### Exception Hierarchy
+### Иерархия исключений
 ```
 Exception
 ├── ValueError
@@ -890,26 +889,26 @@ Exception
     └── Internal consistency errors
 ```
 
-### Common Error Scenarios
+### Распространенные сценарии ошибок
 
-#### Invalid Parameters
+#### Недействительные параметры
 ```python
 try:
-    encrypt_cbc(plaintext, b"short_key", iv)  # Key too short
+    encrypt_cbc(plaintext, b"short_key", iv)  # Ключ слишком короткий
 except ValueError as e:
     print(f"Parameter error: {e}")
 ```
 
-#### Authentication Failure
+#### Ошибка аутентификации
 ```python
 try:
     plaintext = decrypt_gcm(tampered_ciphertext, tag, nonce, key)
 except AuthenticationError as e:
     print(f"Authentication failed: {e}")
-    # CRITICAL: No plaintext is output
+    # КРИТИЧЕСКИ: Открытый текст не выводится
 ```
 
-#### File Operations
+#### Операции с файлами
 ```python
 try:
     data = read_file("/nonexistent/path/file.txt")
@@ -919,131 +918,131 @@ except PermissionError as e:
     print(f"Permission denied: {e}")
 ```
 
-### Best Practices
-1. **Always catch specific exceptions** rather than generic `Exception`
-2. **Handle authentication failures gracefully** without revealing sensitive information
-3. **Validate user inputs** before passing to cryptographic functions
-4. **Clean up sensitive data** from memory after use
+### Рекомендации
+1. **Всегда перехватывайте конкретные исключения**, а не общее `Exception`
+2. **Обрабатывайте ошибки аутентификации корректно**, не раскрывая конфиденциальную информацию
+3. **Проверяйте пользовательский ввод** перед передачей в криптографические функции
+4. **Очищайте конфиденциальные данные** из памяти после использования
 
 ---
 
-## Security Considerations
+## Вопросы безопасности
 
-### Critical Security Rules
+### Критические правила безопасности
 
-#### 1. Key Management
-- **Never hardcode keys** in source code
-- **Use cryptographically secure random generators** for key generation
-- **Store keys securely** (hardware security modules, key management systems)
-- **Rotate keys periodically** based on data sensitivity
+#### 1. Управление ключами
+- **Никогда не встраивайте ключи жестко** в исходный код
+- **Используйте криптографически стойкие генераторы случайных чисел** для генерации ключей
+- **Храните ключи безопасно** (аппаратные модули безопасности, системы управления ключами)
+- **Регулярно меняйте ключи** в зависимости от чувствительности данных
 
-#### 2. IV/Nonce Usage
-- **Never reuse IV/nonce** with the same key (especially critical for GCM, CTR)
-- **Use cryptographically random IVs** (except for deterministic algorithms)
-- **For GCM**: 12-byte random nonce is recommended
+#### 2. Использование IV/нонса
+- **Никогда не используйте повторно IV/нонс** с тем же ключом (особенно критично для GCM, CTR)
+- **Используйте криптографически случайные IV** (кроме детерминированных алгоритмов)
+- **Для GCM**: рекомендуется 12-байтовый случайный нонс
 
-#### 3. Mode Selection Guidelines
-| Use Case | Recommended Mode | Notes |
+#### 3. Рекомендации по выбору режима
+| Вариант использования | Рекомендуемый режим | Примечания |
 |----------|-----------------|-------|
-| General encryption | GCM | Authenticated encryption |
-| Legacy compatibility | CBC with HMAC | Encrypt-then-MAC |
-| Disk encryption | XTS (not implemented) | For fixed-size blocks |
-| Educational/testing | ECB | Single blocks only |
+| Общее шифрование | GCM | Аутентифицированное шифрование |
+| Обратная совместимость | CBC с HMAC | Шифрование-затем-MAC |
+| Шифрование дисков | XTS (не реализован) | Для блоков фиксированного размера |
+| Обучение/тестирование | ECB | Только одиночные блоки |
 
-#### 4. Password-Based Key Derivation
-- **Minimum iterations**: 100,000 for PBKDF2
-- **Use unique salt** for each password
-- **Store salt** alongside derived key (salt is not secret)
-- **Consider memory-hard functions** (Argon2, scrypt) for high-security applications
+#### 4. Генерация ключей на основе паролей
+- **Минимальное количество итераций**: 100,000 для PBKDF2
+- **Используйте уникальную соль** для каждого пароля
+- **Храните соль** вместе с генерируемым ключом (соль не является секретной)
+- **Рассмотрите функции с высокой сложностью по памяти** (Argon2, scrypt) для высокозащищенных приложений
 
-### Implementation Security
+### Безопасность реализации
 
-#### Constant-Time Operations
-Where practical, CryptoCore uses constant-time algorithms:
-- HMAC verification
-- Padding verification
-- GCM tag comparison
+#### Операции с постоянным временем
+Там, где это практично, CryptoCore использует алгоритмы с постоянным временем:
+- Проверка HMAC
+- Проверка дополнения
+- Сравнение тегов GCM
 
-#### Memory Management
-- **Sensitive data clearing**: Keys and passwords are zeroed after use where possible
-- **Buffer safety**: Python's memory management prevents buffer overflows
-- **No secret logging**: Debug information excludes sensitive data
+#### Управление памятью
+- **Очистка конфиденциальных данных**: Ключи и пароли обнуляются после использования, где это возможно
+- **Безопасность буфера**: Управление памятью Python предотвращает переполнение буфера
+- **Отсутствие логирования секретов**: Отладочная информация исключает конфиденциальные данные
 
-#### Input Validation
-All functions validate:
-- Key lengths (AES: 16/24/32 bytes)
-- IV/nonce lengths (CBC/CFB/OFB: 16 bytes, GCM: 12 bytes recommended)
-- Ciphertext lengths (must be multiples of block size where required)
-- Parameter ranges (iterations > 0, key lengths > 0)
+#### Проверка ввода
+Все функции проверяют:
+- Длины ключей (AES: 16/24/32 байта)
+- Длины IV/нонсов (CBC/CFB/OFB: 16 байт, GCM: 12 байт рекомендуется)
+- Длины шифротекстов (должны быть кратны размеру блока, где требуется)
+- Диапазоны параметров (итерации > 0, длины ключей > 0)
 
-### Security Checklist for Users
-- [ ] Use GCM or Encrypt-then-MAC for authenticated encryption
-- [ ] Generate random keys with `generate_random_key()`
-- [ ] Generate random IVs with `generate_random_iv()`
-- [ ] Use at least 100,000 iterations for PBKDF2
-- [ ] Verify HMAC/GCM tags before using decrypted data
-- [ ] Never reuse nonce/IV with same key
-- [ ] Store salts with derived keys
-- [ ] Clear sensitive variables after use
-- [ ] Validate all user inputs before cryptographic operations
+### Контрольный список безопасности для пользователей
+- [ ] Используйте GCM или Шифрование-затем-MAC для аутентифицированного шифрования
+- [ ] Генерируйте случайные ключи с помощью `generate_random_key()`
+- [ ] Генерируйте случайные IV с помощью `generate_random_iv()`
+- [ ] Используйте не менее 100,000 итераций для PBKDF2
+- [ ] Проверяйте теги HMAC/GCM перед использованием дешифрованных данных
+- [ ] Никогда не используйте нонс/IV повторно с тем же ключом
+- [ ] Храните соли вместе с генерируемыми ключами
+- [ ] Очищайте конфиденциальные переменные после использования
+- [ ] Проверяйте весь пользовательский ввод перед криптографическими операциями
 
 ---
 
-## Testing and Validation
+## Тестирование и валидация
 
-### Test Suite Structure
+### Структура набора тестов
 ```
 tests/
-├── unit/                    # Unit tests for individual functions
-│   ├── test_csprng.py      # Random number generation tests
-│   ├── test_hash_sha256.py # SHA-256 implementation tests
-│   ├── test_hmac.py        # HMAC implementation tests
-│   ├── test_ecb.py         # ECB mode tests
-│   ├── test_cbc.py         # CBC mode tests
-│   ├── test_cfb.py         # CFB mode tests
-│   ├── test_ofb.py         # OFB mode tests
-│   ├── test_ctr.py         # CTR mode tests
-│   ├── test_gcm.py         # GCM mode tests
-│   ├── test_padding.py     # Padding tests
-│   └── test_file_io.py     # File I/O tests
-├── integration/             # Integration tests
-│   ├── test_integration.py # End-to-end tests
-│   └── test_openssl_compatibility.py # OpenSSL compatibility
-└── vectors/                # Known-answer test vectors
-    └── nist_kat/           # NIST Known Answer Tests
+├── unit/                    # Модульные тесты для отдельных функций
+│   ├── test_csprng.py      # Тесты генерации случайных чисел
+│   ├── test_hash_sha256.py # Тесты реализации SHA-256
+│   ├── test_hmac.py        # Тесты реализации HMAC
+│   ├── test_ecb.py         # Тесты режима ECB
+│   ├── test_cbc.py         # Тесты режима CBC
+│   ├── test_cfb.py         # Тесты режима CFB
+│   ├── test_ofb.py         # Тесты режима OFB
+│   ├── test_ctr.py         # Тесты режима CTR
+│   ├── test_gcm.py         # Тесты режима GCM
+│   ├── test_padding.py     # Тесты дополнения
+│   └── test_file_io.py     # Тесты ввода/вывода файлов
+├── integration/             # Интеграционные тесты
+│   ├── test_integration.py # Сквозные тесты
+│   └── test_openssl_compatibility.py # Совместимость с OpenSSL
+└── vectors/                # Тестовые векторы с известными ответами
+    └── nist_kat/           # Тесты NIST Known Answer Tests
 ```
 
-### Running Tests
+### Запуск тестов
 ```bash
-# Run all tests
+# Запустить все тесты
 python -m pytest tests/ -v
 
-# Run specific test categories
+# Запустить определенные категории тестов
 python -m pytest tests/unit/ -v
 python -m pytest tests/integration/ -v
 
-# Run with coverage report
+# Запустить с отчетом о покрытии
 python -m pytest tests/ --cov=cryptocore --cov-report=html
 ```
 
-### Test Coverage
-- **Unit Tests**: 160+ tests covering all public functions
-- **Known-Answer Tests**: NIST test vectors for all algorithms
-- **Integration Tests**: CLI usage, file operations, cross-mode compatibility
-- **Negative Tests**: Error conditions, invalid inputs, edge cases
-- **Performance Tests**: Benchmarks for critical operations
+### Покрытие тестами
+- **Модульные тесты**: 160+ тестов, охватывающих все публичные функции
+- **Тесты с известными ответами**: Тестовые векторы NIST для всех алгоритмов
+- **Интеграционные тесты**: Использование CLI, операции с файлами, кросс-режимная совместимость
+- **Негативные тесты**: Ошибочные условия, недействительный ввод, граничные случаи
+- **Тесты производительности**: Бенчмарки для критических операций
 
-### NIST Compatibility
-All implementations are validated against NIST test vectors:
-- **AES**: NIST SP 800-38A test vectors
-- **GCM**: NIST SP 800-38D test vectors
-- **SHA-256**: FIPS 180-4 test vectors
-- **HMAC**: RFC 4231 test vectors
-- **PBKDF2**: RFC 6070 test vectors
+### Совместимость с NIST
+Все реализации проверены по тестовым векторам NIST:
+- **AES**: Тестовые векторы NIST SP 800-38A
+- **GCM**: Тестовые векторы NIST SP 800-38D
+- **SHA-256**: Тестовые векторы FIPS 180-4
+- **HMAC**: Тестовые векторы RFC 4231
+- **PBKDF2**: Тестовые векторы RFC 6070
 
-### OpenSSL Compatibility
+### Совместимость с OpenSSL
 ```bash
-# Test encryption compatibility
+# Тестировать совместимость шифрования
 cryptocore crypto --algorithm aes --mode cbc --encrypt \
   --key 00112233445566778899aabbccddeeff \
   --input test.txt --output test.enc
@@ -1054,14 +1053,14 @@ openssl enc -aes-128-cbc -d \
   -in <(tail -c +17 test.enc) \
   -out test.dec
 
-diff test.txt test.dec  # Should be identical
+diff test.txt test.dec  # Должны быть идентичны
 ```
 
 ---
 
-## Examples and Use Cases
+## Примеры и варианты использования
 
-### Example 1: Secure File Encryption with Authentication
+### Пример 1: Безопасное шифрование файлов с аутентификацией
 ```python
 from cryptocore.modes.gcm import encrypt_gcm, decrypt_gcm
 from cryptocore.utils.csprng import generate_random_key
@@ -1069,38 +1068,38 @@ from cryptocore.utils.file_io import read_file, write_file
 import os
 
 def encrypt_file_with_metadata(input_path, output_path, metadata):
-    """Encrypt file with authenticated metadata."""
-    # Generate or load key (in practice, use secure key storage)
+    """Шифрует файл с аутентифицированными метаданными."""
+    # Генерировать или загрузить ключ (на практике используйте безопасное хранилище ключей)
     key = generate_random_key()
     
-    # Read plaintext
+    # Прочитать открытый текст
     plaintext = read_file(input_path)
     
-    # Encrypt with metadata as AAD
+    # Зашифровать с метаданными как AAD
     nonce, ciphertext, tag = encrypt_gcm(
         plaintext=plaintext,
         key=key,
         aad=metadata.encode()
     )
     
-    # Save encrypted file
+    # Сохранить зашифрованный файл
     with open(output_path, 'wb') as f:
         f.write(nonce + ciphertext + tag)
     
     return key, nonce
 
 def decrypt_and_verify(input_path, output_path, key, expected_metadata):
-    """Decrypt file and verify metadata."""
-    # Read encrypted file
+    """Дешифрует файл и проверяет метаданные."""
+    # Прочитать зашифрованный файл
     with open(input_path, 'rb') as f:
         data = f.read()
     
-    # Extract components
+    # Извлечь компоненты
     nonce = data[:12]
     ciphertext = data[12:-16]
     tag = data[-16:]
     
-    # Decrypt with verification
+    # Дешифровать с проверкой
     try:
         plaintext = decrypt_gcm(
             ciphertext=ciphertext,
@@ -1110,7 +1109,7 @@ def decrypt_and_verify(input_path, output_path, key, expected_metadata):
             aad=expected_metadata.encode()
         )
         
-        # Write decrypted file
+        # Записать дешифрованный файл
         write_file(output_path, plaintext, overwrite=True)
         print("Decryption successful - integrity verified")
         return True
@@ -1119,7 +1118,7 @@ def decrypt_and_verify(input_path, output_path, key, expected_metadata):
         print("ERROR: Authentication failed - file may be tampered")
         return False
 
-# Usage
+# Использование
 key, nonce = encrypt_file_with_metadata(
     "sensitive.docx",
     "sensitive.docx.enc",
@@ -1134,7 +1133,7 @@ success = decrypt_and_verify(
 )
 ```
 
-### Example 2: Password-Based Encryption System
+### Пример 2: Система шифрования на основе пароля
 ```python
 from cryptocore.kdf.pbkdf2 import derive_from_password
 from cryptocore.modes.gcm import encrypt_gcm, decrypt_gcm
@@ -1144,7 +1143,7 @@ import json
 
 class PasswordVault:
     def __init__(self, password, iterations=200000):
-        """Initialize vault with user password."""
+        """Инициализирует хранилище с паролем пользователя."""
         self.iterations = iterations
         self.salt = generate_random_bytes(16)
         self.encryption_key, _ = derive_from_password(
@@ -1152,7 +1151,7 @@ class PasswordVault:
         )
     
     def encrypt_entry(self, service, username, password, metadata=""):
-        """Encrypt a password entry."""
+        """Шифрует запись пароля."""
         entry = {
             "service": service,
             "username": username,
@@ -1175,7 +1174,7 @@ class PasswordVault:
         }
     
     def decrypt_entry(self, encrypted_entry):
-        """Decrypt and verify a password entry."""
+        """Дешифрует и проверяет запись пароля."""
         nonce = bytes.fromhex(encrypted_entry["nonce"])
         ciphertext = bytes.fromhex(encrypted_entry["ciphertext"])
         tag = bytes.fromhex(encrypted_entry["tag"])
@@ -1190,11 +1189,11 @@ class PasswordVault:
         
         return json.loads(plaintext.decode())
 
-# Usage
+# Использование
 password = getpass.getpass("Enter vault password: ")
 vault = PasswordVault(password, iterations=300000)
 
-# Store credentials
+# Сохранить учетные данные
 encrypted = vault.encrypt_entry(
     service="github",
     username="alice",
@@ -1202,14 +1201,14 @@ encrypted = vault.encrypt_entry(
     metadata="personal account"
 )
 
-# Retrieve credentials
+# Получить учетные данные
 decrypted = vault.decrypt_entry(encrypted)
 print(f"Service: {decrypted['service']}")
 print(f"Username: {decrypted['username']}")
 print(f"Password: {decrypted['password']}")
 ```
 
-### Example 3: Batch File Processing with Integrity
+### Пример 3: Пакетная обработка файлов с целостностью
 ```python
 from cryptocore.hash.sha256 import SHA256
 from cryptocore.mac.hmac import HMAC
@@ -1217,7 +1216,7 @@ from cryptocore.utils.file_io import read_file, write_file
 import os
 
 def process_files_with_integrity(input_dir, output_dir, hmac_key):
-    """Process files with HMAC integrity protection."""
+    """Обрабатывает файлы с защитой целостности HMAC."""
     os.makedirs(output_dir, exist_ok=True)
     
     hmac = HMAC(hmac_key)
@@ -1229,18 +1228,18 @@ def process_files_with_integrity(input_dir, output_dir, hmac_key):
         if not os.path.isfile(input_path):
             continue
         
-        # Read and process file
+        # Прочитать и обработать файл
         data = read_file(input_path)
-        processed_data = data.upper()  # Example processing
+        processed_data = data.upper()  # Пример обработки
         
-        # Compute HMAC for integrity
+        # Вычислить HMAC для целостности
         file_hmac = hmac.compute_hex(processed_data)
         
-        # Write processed file
+        # Записать обработанный файл
         output_path = os.path.join(output_dir, filename)
         write_file(output_path, processed_data, overwrite=True)
         
-        # Write HMAC file
+        # Записать файл HMAC
         hmac_path = output_path + ".hmac"
         with open(hmac_path, 'w') as f:
             f.write(f"{file_hmac}  {filename}\n")
@@ -1254,7 +1253,7 @@ def process_files_with_integrity(input_dir, output_dir, hmac_key):
     return integrity_log
 
 def verify_processed_files(output_dir, hmac_key):
-    """Verify integrity of processed files."""
+    """Проверяет целостность обработанных файлов."""
     hmac = HMAC(hmac_key)
     results = []
     
@@ -1269,15 +1268,15 @@ def verify_processed_files(output_dir, hmac_key):
             results.append((filename, "MISSING_HMAC", False))
             continue
         
-        # Read expected HMAC
+        # Прочитать ожидаемый HMAC
         with open(hmac_path, 'r') as f:
             expected_hmac = f.read().strip().split()[0]
         
-        # Compute actual HMAC
+        # Вычислить фактический HMAC
         data = read_file(file_path)
         actual_hmac = hmac.compute_hex(data)
         
-        # Verify
+        # Проверить
         is_valid = (actual_hmac == expected_hmac)
         results.append((filename, "VERIFIED" if is_valid else "TAMPERED", is_valid))
     
@@ -1286,51 +1285,51 @@ def verify_processed_files(output_dir, hmac_key):
 
 ---
 
-## Compatibility Notes
+## Заметки о совместимости
 
-### Python Versions
-- **Primary Support**: Python 3.8, 3.9, 3.10, 3.11, 3.12
-- **Tested On**: CPython (reference implementation)
-- **May Work On**: PyPy, but not officially tested
+### Версии Python
+- **Основная поддержка**: Python 3.8, 3.9, 3.10, 3.11, 3.12
+- **Протестировано на**: CPython (эталонная реализация)
+- **Может работать на**: PyPy, но официально не тестировалось
 
-### Operating Systems
-- **Linux**: Full support, uses `/dev/urandom`
-- **macOS**: Full support, uses `/dev/urandom`
-- **Windows**: Full support, uses `CryptGenRandom` via Python's `os.urandom`
-- **Other Unix-like**: Should work with OS-provided CSPRNG
+### Операционные системы
+- **Linux**: Полная поддержка, использует `/dev/urandom`
+- **macOS**: Полная поддержка, использует `/dev/urandom`
+- **Windows**: Полная поддержка, использует `CryptGenRandom` через `os.urandom` Python
+- **Другие Unix-подобные**: Должно работать с CSPRNG, предоставляемым ОС
 
-### Cryptographic Standards Compliance
-| Standard | Compliance | Notes |
+### Соответствие криптографическим стандартам
+| Стандарт | Соответствие | Примечания |
 |----------|------------|-------|
-| FIPS 197 (AES) | Full | AES-128 only |
-| NIST SP 800-38A | Full | Modes: ECB, CBC, CFB, OFB, CTR |
-| NIST SP 800-38D | Full | GCM mode |
-| FIPS 180-4 | Full | SHA-256 |
-| FIPS 202 | Full | SHA3-256 (via hashlib) |
-| RFC 2104 | Full | HMAC |
-| RFC 2898 | Full | PBKDF2 |
-| RFC 4231 | Full | HMAC test vectors |
+| FIPS 197 (AES) | Полное | Только AES-128 |
+| NIST SP 800-38A | Полное | Режимы: ECB, CBC, CFB, OFB, CTR |
+| NIST SP 800-38D | Полное | Режим GCM |
+| FIPS 180-4 | Полное | SHA-256 |
+| FIPS 202 | Полное | SHA3-256 (через hashlib) |
+| RFC 2104 | Полное | HMAC |
+| RFC 2898 | Полное | PBKDF2 |
+| RFC 4231 | Полное | Тестовые векторы HMAC |
 
-### OpenSSL Compatibility
-CryptoCore maintains compatibility with OpenSSL CLI for validation:
+### Совместимость с OpenSSL
+CryptoCore поддерживает совместимость с CLI OpenSSL для проверки:
 
 ```bash
-# Encryption compatibility
+# Совместимость шифрования
 openssl enc -aes-128-cbc -K <key_hex> -iv <iv_hex> -in file.txt
 
-# Hash compatibility
+# Совместимость хэширования
 openssl dgst -sha256 file.txt
 
-# HMAC compatibility  
+# Совместимость HMAC  
 openssl dgst -sha256 -hmac <key> file.txt
 
-# PBKDF2 compatibility
+# Совместимость PBKDF2
 openssl kdf -keylen 32 -kdfopt digest:SHA256 -kdfopt iter:100000 \
   -kdfopt salt:hex:<salt> PBKDF2 <password>
 ```
 
-### Performance Characteristics
-- **AES Encryption**: ~10-50 MB/s (Python overhead)
-- **SHA-256 Hashing**: ~20-100 MB/s
-- **GCM Encryption**: ~5-30 MB/s (includes authentication)
-- **PBKDF2**: Configurable via iteration count
+### Характеристики производительности
+- **Шифрование AES**: ~10-50 МБ/с (накладные расходы Python)
+- **Хэширование SHA-256**: ~20-100 МБ/с
+- **Шифрование GCM**: ~5-30 МБ/с (включает аутентификацию)
+- **PBKDF2**: Настраивается через количество итераций
